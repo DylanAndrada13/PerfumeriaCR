@@ -10,6 +10,18 @@ const pickUpPoints = ['Coto Lanús', 'Ciclón Caraza', 'UPA Recondo', 'Maxi Carr
 const paymentMethods = ['Mercado Pago', 'Transferencia bancaria', 'Efectivo'];
 const CART_STORAGE = 'cr-perfumeria-cart-v1';
 const money = value => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value || 0);
+const mpConnectMessages = {
+  success: 'Mercado Pago autorizó la cuenta. El panel confirma abajo si quedó guardada.',
+  cancelled: 'Se canceló la autorización de Mercado Pago.',
+  invalid_state: 'La autorización venció o volvió en otra sesión del navegador. Iniciá la conexión otra vez desde este panel.',
+  token_rejected: 'Mercado Pago rechazó el intercambio OAuth. Revisá Client ID, Client Secret, URL de retorno y PKCE en Vercel/Mercado Pago.',
+  wrong_test_seller: 'Se autorizó una cuenta distinta del vendedor de prueba configurado. Conectá el usuario vendedor de prueba cuyo ID figura en Vercel.',
+  identity_mismatch: 'Mercado Pago devolvió IDs de cuenta distintos. No se guardó la conexión.',
+  server_config_error: 'Falta una variable de configuración OAuth en Vercel. No se guardó la conexión.',
+  encryption_error: 'MP_TOKEN_ENCRYPTION_KEY no es una clave Base64 válida de 32 bytes. No se guardó la conexión.',
+  database_error: 'Supabase rechazó el guardado de la conexión. Revisá la función save_mp_seller_connection y SUPABASE_SECRET_KEY en Vercel.',
+  failed: 'Falló el callback OAuth. No se guardó la conexión; revisá los registros de funciones de Vercel para ver el detalle.',
+};
 
 function readCart() {
   try {
@@ -243,7 +255,7 @@ function CheckoutDialog({ items, total, session, onClose, onLogin, onOrdered }) 
   );
 }
 
-function OrderMonitor({ onClose }) {
+function OrderMonitor({ onClose, connectionResult }) {
   const [password, setPassword] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
   const [orders, setOrders] = useState([]);
@@ -276,7 +288,7 @@ function OrderMonitor({ onClose }) {
       <section className="dialog admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-title">
         <button className="icon-button dialog__close" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
         <span className="dialog__mark"><ShieldCheck size={22} /></span><p className="eyebrow">Vista temporal del local</p><h2 id="admin-title">Pedidos online</h2>
-        {!loggedIn ? <form onSubmit={login} className="auth-form"><p className="dialog__intro">Ingresá la clave de administración configurada en el servidor.</p><label>Clave<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label><button className="button button--gold button--wide" disabled={busy}>{busy ? 'Ingresando…' : 'Ver pedidos'}</button></form> : <><section className="mp-connection"><div><strong>Cuenta vendedora de Mercado Pago</strong><span>{sellerConnection?.connected ? `Conectada: ${sellerConnection.seller.nickname || `cuenta ${sellerConnection.seller.id}`}` : 'Todavía no hay una cuenta conectada.'}</span></div><a className="button button--outline" href="/api/admin/mp/connect">{sellerConnection?.connected ? 'Cambiar cuenta' : 'Conectar cuenta'}</a></section>{connectionError && <p className="form-message form-message--error" role="alert">{connectionError}</p>}<p className="checkout-note">Los pagos nuevos se acreditan en la cuenta conectada. Al conectar otra, queda activa para las próximas compras.</p><div className="admin-toolbar"><span>{orders.length} pedidos recientes</span><button className="text-button" type="button" onClick={() => load().catch(err => setError(err.message))}>Actualizar</button></div><div className="admin-orders">{orders.length === 0 ? <p className="checkout-note">Todavía no hay pedidos.</p> : orders.map(order => <article className="admin-order" key={order.id}><header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.payment_status}`}>{order.payment_status === 'paid' ? 'Pago verificado' : order.payment_status === 'failed' ? 'Pago rechazado' : 'Pago pendiente'}</span></header><p>{order.customer_name} · {order.customer_email}</p><p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {order.pickup_point}</p><ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul><footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : order.payment_method}</span><strong>{money(order.total_amount)}</strong></footer></article>)}</div></>}
+        {!loggedIn ? <form onSubmit={login} className="auth-form"><p className="dialog__intro">Ingresá la clave de administración configurada en el servidor.</p><label>Clave<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label><button className="button button--gold button--wide" disabled={busy}>{busy ? 'Ingresando…' : 'Ver pedidos'}</button></form> : <><section className="mp-connection"><div><strong>Cuenta vendedora de Mercado Pago</strong><span>{sellerConnection?.connected ? `Conectada: ${sellerConnection.seller.nickname || `cuenta ${sellerConnection.seller.id}`}` : 'Todavía no hay una cuenta conectada.'}</span><span className={`mp-environment ${sellerConnection?.environment === 'test' ? 'mp-environment--test' : 'mp-environment--warning'}`}>{sellerConnection?.environment === 'test' ? 'Entorno: PRUEBA' : sellerConnection?.environment === 'production' ? 'Entorno: PRODUCCIÓN' : 'Entorno: sin configurar'}</span></div><a className="button button--outline" href="/api/admin/mp/connect">{sellerConnection?.connected ? 'Cambiar cuenta' : 'Conectar cuenta'}</a></section>{connectionResult && <p className={`connection-result ${connectionResult === 'success' ? 'connection-result--success' : 'connection-result--error'}`} role="status">{mpConnectMessages[connectionResult] || mpConnectMessages.failed}</p>}{sellerConnection?.environment === 'test' && !sellerConnection.testSellerConfigured && <p className="form-message form-message--error" role="alert">Falta MERCADOPAGO_TEST_USER_ID en Vercel; no se aceptan pagos de prueba hasta configurarlo.</p>}{sellerConnection?.sellerMatchesTestUser === false && <p className="form-message form-message--error" role="alert">La cuenta conectada no coincide con la cuenta vendedora de prueba configurada.</p>}{connectionError && <p className="form-message form-message--error" role="alert">{connectionError}</p>}<p className="checkout-note">Las compras de prueba guardan el pedido y verifican el pago en Mercado Pago, pero esta aplicación no modifica el stock del catálogo.</p><div className="admin-toolbar"><span>{orders.length} pedidos recientes</span><button className="text-button" type="button" onClick={() => load().catch(err => setError(err.message))}>Actualizar</button></div><div className="admin-orders">{orders.length === 0 ? <p className="checkout-note">Todavía no hay pedidos.</p> : orders.map(order => <article className="admin-order" key={order.id}><header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.payment_status}`}>{order.payment_status === 'paid' ? 'Pago verificado' : order.payment_status === 'failed' ? 'Pago rechazado' : 'Pago pendiente'}</span></header><p>{order.customer_name} · {order.customer_email}</p><p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {order.pickup_point}</p><ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul><footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : order.payment_method}</span><strong>{money(order.total_amount)}</strong></footer></article>)}</div></>}
         {error && <p className="form-message form-message--error" role="alert">{error}</p>}
         <div className="dialog__secure"><LockKeyhole size={14} /> Los pagos se marcan pagados solo al verificar a Mercado Pago</div>
       </section>
@@ -300,6 +312,7 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [mobileMenu, setMobileMenu] = useState(false);
   const [orderMonitorOpen, setOrderMonitorOpen] = useState(false);
+  const [mpConnectResult, setMpConnectResult] = useState(null);
   const [returnedOrder, setReturnedOrder] = useState(() => new URLSearchParams(window.location.search).get('pedido'));
   const [returnedOrderStatus, setReturnedOrderStatus] = useState(null);
   const [sort, setSort] = useState('name');
@@ -337,6 +350,7 @@ export default function App() {
     const connectStatus = params.get('mp_connect');
     if (!connectStatus) return;
     setOrderMonitorOpen(true);
+    setMpConnectResult(connectStatus);
     if (connectStatus === 'success') notify('La cuenta vendedora de Mercado Pago quedó conectada.');
     else if (connectStatus !== 'cancelled') notify('No se pudo conectar la cuenta de Mercado Pago. Revisá la configuración e intentá de nuevo.');
     params.delete('mp_connect'); params.delete('panel');
@@ -493,7 +507,7 @@ export default function App() {
       {checkoutOpen && <CheckoutDialog items={cartItems} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
       {authOpen && <AuthDialog mode={authMode} onMode={setAuthMode} onClose={() => setAuthOpen(false)} onSignedIn={setSession} />}
       {detailProduct && <ProductDialog product={detailProduct} onClose={() => setDetailProduct(null)} onAdd={addToCart} />}
-      {orderMonitorOpen && <OrderMonitor onClose={() => setOrderMonitorOpen(false)} />}
+      {orderMonitorOpen && <OrderMonitor connectionResult={mpConnectResult} onClose={() => setOrderMonitorOpen(false)} />}
     </div>
   );
 }

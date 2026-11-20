@@ -383,6 +383,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .mp-connection > div { display: grid; gap: 5px; }
 .mp-connection strong { color: var(--paper); font-size: 12px; }
 .mp-connection span { color: var(--muted); font-size: 11px; }
+.mp-connection .mp-environment { width: fit-content; margin-top: 3px; border: 1px solid rgba(217,180,94,.32); padding: 3px 7px; color: var(--gold-bright); font-size: 9px; letter-spacing: .06em; }
+.mp-connection .mp-environment--warning { border-color: rgba(231,161,140,.4); color: #e7a18c; }
+.connection-result { margin: 0 0 12px; border: 1px solid rgba(231,161,140,.3); padding: 10px 12px; color: #e7a18c; font-size: 10px; line-height: 1.55; }
+.connection-result--success { border-color: rgba(148,190,142,.4); color: #a9d2a4; }
 .mp-connection .button { min-height: 38px; padding: 0 13px; white-space: nowrap; text-decoration: none; }
 @media (max-width: 520px) { .mp-connection { align-items: stretch; flex-direction: column; } .mp-connection .button { justify-content: center; } }
 .admin-order { padding: 13px 14px; border: 1px solid rgba(217,180,94,.19); background: #15130f; }
