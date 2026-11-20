@@ -257,8 +257,9 @@ Para habilitar la prueba, configurar en el servidor `MERCADOPAGO_CLIENT_ID`,
 `MERCADOPAGO_WEBHOOK_SECRET`, `PUBLIC_APP_URL` y `MERCADOPAGO_TEST_USER_ID`. Las credenciales
 de aplicación deben ser de una aplicación Marketplace con la URL de retorno exacta
 `/api/mp/oauth/callback`. En modo `test`, solo se acepta el usuario vendedor de prueba cuyo ID
-esté configurado; en modo `test` el intercambio OAuth pide credenciales sandbox (`test_token=true`)
-y rechaza conexiones que Mercado Pago marque como productivas. Usar cuentas de prueba de Mercado Pago evita cobrar dinero real. El webhook
+esté configurado. Checkout Pro Preferences requiere el token `APP_USR` del vendedor de prueba
+y el `init_point`; el comprador y el vendedor deben ser usuarios de prueba del mismo país. El ID
+configurado restringe la conexión al vendedor de prueba. El webhook
 debe recibir notificaciones de pagos en `/api/orders/webhook`. Para pasar de la cuenta de prueba
 a la del negocio, se vuelve a autorizar la nueva cuenta desde el panel; esa conexión queda activa
 para las nuevas compras y las anteriores conservan su referencia al vendedor original.
