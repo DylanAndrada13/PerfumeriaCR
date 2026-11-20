@@ -305,6 +305,12 @@ export default function App() {
   const [sort, setSort] = useState('name');
   const searchRef = useRef(null);
 
+  const notify = useCallback(message => {
+    setToast(message);
+    window.clearTimeout(notify.timer);
+    notify.timer = window.setTimeout(() => setToast(''), 2600);
+  }, []);
+
   const loadCatalog = useCallback(async () => {
     setCatalogStatus('loading');
     try {
@@ -373,12 +379,6 @@ export default function App() {
     };
     window.addEventListener('keydown', onShortcut);
     return () => window.removeEventListener('keydown', onShortcut);
-  }, []);
-
-  const notify = useCallback(message => {
-    setToast(message);
-    window.clearTimeout(notify.timer);
-    notify.timer = window.setTimeout(() => setToast(''), 2600);
   }, []);
 
   const categories = useMemo(() => ['Todos', ...new Set(products.map(product => product.category.trim()).filter(Boolean).sort((a, b) => a.localeCompare(b, 'es')))], [products]);
