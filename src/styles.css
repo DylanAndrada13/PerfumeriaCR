@@ -379,6 +379,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .admin-dialog h2 { margin: 9px 0 18px; color: var(--paper); font: 500 30px/1.2 var(--serif); }
 .admin-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 12px; color: #aaa18e; font-size: 10px; }
 .admin-orders { max-height: min(55dvh, 570px); overflow: auto; display: grid; gap: 9px; }
+.mp-connection { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px; margin: 0 0 12px; border: 1px solid var(--line); background: rgba(255,255,255,.025); }
+.mp-connection > div { display: grid; gap: 5px; }
+.mp-connection strong { color: var(--paper); font-size: 12px; }
+.mp-connection span { color: var(--muted); font-size: 11px; }
+.mp-connection .button { min-height: 38px; padding: 0 13px; white-space: nowrap; text-decoration: none; }
+@media (max-width: 520px) { .mp-connection { align-items: stretch; flex-direction: column; } .mp-connection .button { justify-content: center; } }
 .admin-order { padding: 13px 14px; border: 1px solid rgba(217,180,94,.19); background: #15130f; }
 .admin-order header, .admin-order footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .admin-order header strong { color: var(--paper); font-size: 12px; letter-spacing: .04em; }

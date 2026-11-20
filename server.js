@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getPublicCatalog } from './lib/server-catalog.js';
 import { createOrder, mercadoPagoWebhook, orderStatus, adminLogin, adminOrders } from './lib/order-api.js';
+import { startMercadoPagoConnect, mercadoPagoOAuthCallback, mercadoPagoConnectionStatus } from './lib/mercadopago-oauth.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 try { process.loadEnvFile(path.join(here, '.env.local')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
@@ -17,6 +18,9 @@ app.get('/api/orders/status', orderStatus);
 app.post('/api/orders/webhook', mercadoPagoWebhook);
 app.post('/api/admin/login', adminLogin);
 app.get('/api/admin/orders', adminOrders);
+app.get('/api/admin/mp/connect', startMercadoPagoConnect);
+app.get('/api/admin/mp/status', mercadoPagoConnectionStatus);
+app.get('/api/mp/oauth/callback', mercadoPagoOAuthCallback);
 app.get('/api/catalog/products', async (_request, response) => {
   try {
     const products = await getPublicCatalog();

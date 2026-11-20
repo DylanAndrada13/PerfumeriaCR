@@ -249,11 +249,17 @@ function OrderMonitor({ onClose }) {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sellerConnection, setSellerConnection] = useState(null);
+  const [connectionError, setConnectionError] = useState('');
   const load = async () => {
     const response = await fetch('/api/admin/orders', { credentials: 'same-origin' });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los pedidos.');
     setOrders(data.orders || []); setLoggedIn(true); setError('');
+    const connectionResponse = await fetch('/api/admin/mp/status', { credentials: 'same-origin' });
+    const connectionData = await connectionResponse.json();
+    if (connectionResponse.ok) { setSellerConnection(connectionData); setConnectionError(''); }
+    else setConnectionError(connectionData.error || 'No se pudo consultar la cuenta conectada.');
   };
   const login = async event => {
     event.preventDefault(); setBusy(true); setError('');
@@ -264,12 +270,13 @@ function OrderMonitor({ onClose }) {
     } catch (err) { setError(err.message); }
     finally { setBusy(false); }
   };
+  useEffect(() => { load().catch(() => {}); }, []);
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="dialog admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-title">
         <button className="icon-button dialog__close" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
         <span className="dialog__mark"><ShieldCheck size={22} /></span><p className="eyebrow">Vista temporal del local</p><h2 id="admin-title">Pedidos online</h2>
-        {!loggedIn ? <form onSubmit={login} className="auth-form"><p className="dialog__intro">Ingresá la clave de administración configurada en el servidor.</p><label>Clave<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label><button className="button button--gold button--wide" disabled={busy}>{busy ? 'Ingresando…' : 'Ver pedidos'}</button></form> : <><div className="admin-toolbar"><span>{orders.length} pedidos recientes</span><button className="text-button" type="button" onClick={() => load().catch(err => setError(err.message))}>Actualizar</button></div><div className="admin-orders">{orders.length === 0 ? <p className="checkout-note">Todavía no hay pedidos.</p> : orders.map(order => <article className="admin-order" key={order.id}><header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.payment_status}`}>{order.payment_status === 'paid' ? 'Pago verificado' : order.payment_status === 'failed' ? 'Pago rechazado' : 'Pago pendiente'}</span></header><p>{order.customer_name} · {order.customer_email}</p><p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {order.pickup_point}</p><ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul><footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : order.payment_method}</span><strong>{money(order.total_amount)}</strong></footer></article>)}</div></>}
+        {!loggedIn ? <form onSubmit={login} className="auth-form"><p className="dialog__intro">Ingresá la clave de administración configurada en el servidor.</p><label>Clave<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label><button className="button button--gold button--wide" disabled={busy}>{busy ? 'Ingresando…' : 'Ver pedidos'}</button></form> : <><section className="mp-connection"><div><strong>Cuenta vendedora de Mercado Pago</strong><span>{sellerConnection?.connected ? `Conectada: ${sellerConnection.seller.nickname || `cuenta ${sellerConnection.seller.id}`}` : 'Todavía no hay una cuenta conectada.'}</span></div><a className="button button--outline" href="/api/admin/mp/connect">{sellerConnection?.connected ? 'Cambiar cuenta' : 'Conectar cuenta'}</a></section>{connectionError && <p className="form-message form-message--error" role="alert">{connectionError}</p>}<p className="checkout-note">Los pagos nuevos se acreditan en la cuenta conectada. Al conectar otra, queda activa para las próximas compras.</p><div className="admin-toolbar"><span>{orders.length} pedidos recientes</span><button className="text-button" type="button" onClick={() => load().catch(err => setError(err.message))}>Actualizar</button></div><div className="admin-orders">{orders.length === 0 ? <p className="checkout-note">Todavía no hay pedidos.</p> : orders.map(order => <article className="admin-order" key={order.id}><header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.payment_status}`}>{order.payment_status === 'paid' ? 'Pago verificado' : order.payment_status === 'failed' ? 'Pago rechazado' : 'Pago pendiente'}</span></header><p>{order.customer_name} · {order.customer_email}</p><p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {order.pickup_point}</p><ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul><footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : order.payment_method}</span><strong>{money(order.total_amount)}</strong></footer></article>)}</div></>}
         {error && <p className="form-message form-message--error" role="alert">{error}</p>}
         <div className="dialog__secure"><LockKeyhole size={14} /> Los pagos se marcan pagados solo al verificar a Mercado Pago</div>
       </section>
@@ -319,6 +326,17 @@ export default function App() {
   }, []);
 
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connectStatus = params.get('mp_connect');
+    if (!connectStatus) return;
+    setOrderMonitorOpen(true);
+    if (connectStatus === 'success') notify('La cuenta vendedora de Mercado Pago quedó conectada.');
+    else if (connectStatus !== 'cancelled') notify('No se pudo conectar la cuenta de Mercado Pago. Revisá la configuración e intentá de nuevo.');
+    params.delete('mp_connect'); params.delete('panel');
+    const nextUrl = `${window.location.pathname}${params.size ? `?${params}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', nextUrl);
+  }, [notify]);
   useEffect(() => { localStorage.setItem(CART_STORAGE, JSON.stringify(cart)); }, [cart]);
   useEffect(() => {
     if (!supabase) return undefined;

@@ -235,8 +235,36 @@ solo lectura y requiere `SHOP_ADMIN_PASSWORD`. No es aún la integración con la
 del sistema de gestión. Transferencia y efectivo se muestran como opciones futuras, sin habilitar
 su confirmación.
 
-El checkout web y el panel no quedarán operativos hasta revisar y aplicar la migración y
-configurar secretos del entorno de prueba. No guardar tokens privados con prefijo `VITE_`.
+Según confirmó el usuario, las tablas `web_orders` y `web_order_items` ya fueron creadas en
+Supabase. Este workspace no ejecutó esa migración ni escribió en la base compartida.
+
+## Autorización de la cuenta vendedora
+
+La integración de pagos usa OAuth de Mercado Pago Marketplace. El dueño de la tienda conecta
+su cuenta desde «Pedidos del local»; el comprador no conecta Mercado Pago. El backend crea una
+preferencia de Checkout Pro con el token de la cuenta conectada, por lo que el pago se acredita
+en esa cuenta. El Access Token y Refresh Token del vendedor se guardan cifrados en
+`mp_seller_connections`; la clave de cifrado y las credenciales de la aplicación Marketplace
+son variables solo del servidor.
+
+La migración `supabase/migrations/202611200001_mp_oauth_connections.sql` es un borrador aditivo:
+agrega metadatos de Mercado Pago a `web_orders` y la tabla aislada de conexiones. No toca
+productos, compras existentes ni `shop_purchases`. **No se aplicó desde este workspace.** Debe
+revisarse y aplicarse antes de habilitar OAuth.
+
+Para habilitar la prueba, configurar en el servidor `MERCADOPAGO_CLIENT_ID`,
+`MERCADOPAGO_CLIENT_SECRET`, `MERCADOPAGO_REDIRECT_URI`, `MP_TOKEN_ENCRYPTION_KEY`,
+`MERCADOPAGO_WEBHOOK_SECRET`, `PUBLIC_APP_URL` y `MERCADOPAGO_TEST_USER_ID`. Las credenciales
+de aplicación deben ser de una aplicación Marketplace con la URL de retorno exacta
+`/api/mp/oauth/callback`. En modo `test`, solo se acepta el usuario vendedor de prueba cuyo ID
+esté configurado; usar cuentas de prueba de Mercado Pago evita cobrar dinero real. El webhook
+debe recibir notificaciones de pagos en `/api/orders/webhook`. Para pasar de la cuenta de prueba
+a la del negocio, se vuelve a autorizar la nueva cuenta desde el panel; esa conexión queda activa
+para las nuevas compras y las anteriores conservan su referencia al vendedor original.
+
+No guardar credenciales privadas ni tokens con prefijo `VITE_`, ni copiarlos al chat o al
+repositorio. La configuración local está en `.env.local` (ignorada por Git); Vercel requiere
+configurar las mismas variables en el entorno Preview que se use para las pruebas.
 
 La aplicación incluye manifiesto y service worker para instalarla como PWA y abrir una copia
 reciente de la interfaz cuando no haya conexión. El catálogo y las cuentas requieren Internet.
