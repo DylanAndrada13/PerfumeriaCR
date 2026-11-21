@@ -121,7 +121,7 @@ Luego deberá seleccionar un punto de retiro:
 - Maxi Carrefour.
 - Santa Marta.
 
-Los medios de pago disponibles serán:
+Los medios de pago previstos son:
 
 - **Mercado Pago:** pago online mediante redirección al checkout.
 - **Transferencia bancaria:** con posibilidad de presentar un comprobante para verificar el pago.
@@ -222,8 +222,8 @@ agrega `web_orders` y `web_order_items`; no cambia productos, categorías ni com
 No fue aplicada a Supabase. Revisarla antes de decidir si se aplica.
 
 El servidor valida la sesión del cliente, relee precio y stock vigentes desde `shop_products`,
-guarda una copia de nombre, imagen, cantidad y precio, y recién entonces solicita una orden de
-Checkout Pro Orders API. El navegador no envía importes autoritativos ni puede marcar pagos como
+guarda una copia de nombre, imagen, cantidad y precio, y recién entonces crea una preferencia de
+Checkout Pro. El navegador no envía importes autoritativos ni puede marcar pagos como
 pagados. El estado pagado solo se establece después de verificar la firma de un webhook y
 consultar la orden directamente con Mercado Pago. El regreso del checkout solo muestra el estado
 que ya confirmó el servidor. No se descuenta stock ni se escriben datos en `shop_purchases`.
@@ -252,7 +252,7 @@ agrega metadatos de Mercado Pago a `web_orders` y la tabla aislada de conexiones
 productos, compras existentes ni `shop_purchases`. **No se aplicó desde este workspace.** Debe
 revisarse y aplicarse antes de habilitar OAuth.
 
-Para habilitar la prueba, configurar en el servidor `MERCADOPAGO_CLIENT_ID`,
+Para habilitar el entorno de prueba, configurar en el servidor `MERCADOPAGO_ENV=test`, `MERCADOPAGO_CLIENT_ID`,
 `MERCADOPAGO_CLIENT_SECRET`, `MERCADOPAGO_REDIRECT_URI`, `MP_TOKEN_ENCRYPTION_KEY`,
 `MERCADOPAGO_WEBHOOK_SECRET`, `PUBLIC_APP_URL` y `MERCADOPAGO_TEST_USER_ID`. Las credenciales
 de aplicación deben ser de una aplicación Marketplace con la URL de retorno exacta
@@ -267,6 +267,14 @@ para las nuevas compras y las anteriores conservan su referencia al vendedor ori
 No guardar credenciales privadas ni tokens con prefijo `VITE_`, ni copiarlos al chat o al
 repositorio. La configuración local está en `.env.local` (ignorada por Git); Vercel requiere
 configurar las mismas variables en el entorno Preview que se use para las pruebas.
+
+Para producción, configurar en Vercel `MERCADOPAGO_ENV=production`, las credenciales
+productivas de la aplicación, `MERCADOPAGO_REDIRECT_URI=https://perfumeria-cr.vercel.app/api/mp/oauth/callback`,
+`PUBLIC_APP_URL=https://perfumeria-cr.vercel.app` y el secreto productivo del webhook. Mantener
+`MERCADOPAGO_TEST_USER_ID=3855573320` como bloqueo para impedir que la cuenta vendedora de prueba
+reciba cobros reales. Luego el comercio debe autorizar su cuenta real desde «Pedidos del local».
+El checkout está limitado a saldo de Mercado Pago (`wallet_purchase`); tarjetas y efectivo quedan
+fuera del flujo. El stock sigue siendo de solo lectura en las compras web.
 
 La aplicación incluye manifiesto y service worker para instalarla como PWA y abrir una copia
 reciente de la interfaz cuando no haya conexión. El catálogo y las cuentas requieren Internet.
