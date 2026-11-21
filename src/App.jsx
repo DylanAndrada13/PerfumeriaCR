@@ -8,7 +8,10 @@ import { authReady, supabase } from './lib/supabase.js';
 
 const pickUpPoints = ['Coto Lanús', 'Ciclón Caraza', 'UPA Recondo', 'Maxi Carrefour', 'Santa Marta'];
 const CART_STORAGE = 'cr-perfumeria-cart-v1';
-const money = value => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value || 0);
+const money = value => {
+  const amount = Number(value) || 0;
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 }).format(amount);
+};
 const mpConnectMessages = {
   success: 'Mercado Pago autorizó la cuenta. El panel confirma abajo si quedó guardada.',
   cancelled: 'Se canceló la autorización de Mercado Pago.',
