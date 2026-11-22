@@ -6,11 +6,12 @@ import {
 import { supabase } from './lib/supabase.js';
 import { money, pickUpPoints, readCart, saveCart, sameText } from './lib/format.js';
 import { DEFAULT_FILTERS, PAGE_SIZE, filtersFromUrl, useCatalogPage, useDebounced, useFacets, useFreshProducts, writeFiltersToUrl } from './lib/catalog.js';
-import { Pagination, ProductCard, ProductImage, SkeletonCard } from './components/Products.jsx';
+import { Pagination, ProductCard, SkeletonCard } from './components/Products.jsx';
 import { ActiveFilters, FilterPanel } from './components/Filters.jsx';
 import { CartDialog, CheckoutDialog, MyOrdersDialog, OrderResultDialog, ProductDialog } from './components/Dialogs.jsx';
 import { AuthDialog, AuthGate, BootSplash, IntroOverlay, Logo, PasswordResetDialog } from './components/Auth.jsx';
 import OrderMonitor from './components/OrderMonitor.jsx';
+import CleaningScene from './components/CleaningScene.jsx';
 import Modal from './components/Modal.jsx';
 
 const WHATSAPP_URL = 'https://wa.me/5491133697693';
@@ -57,20 +58,6 @@ function AccountMenu({ session, firstName, onSignOut, onOrders }) {
   );
 }
 
-function Showcase({ products, onOpen }) {
-  if (!products.length) {
-    return <div className="showcase showcase--empty" aria-hidden="true"><Logo size="medium" className="showcase__logo" /></div>;
-  }
-  return (
-    <div className={`showcase showcase--${products.length}`}>
-      {products.map((product, index) => (
-        <button key={product.id} type="button" className={`showcase__tile showcase__tile--${index}`} onClick={() => onOpen(product)} aria-label={`Ver ${product.name}`}>
-          <ProductImage product={product} className="showcase__img" eager />
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function Shop({ session, setSession, onAdmin, notify }) {
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...filtersFromUrl() }));
@@ -78,7 +65,6 @@ function Shop({ session, setSession, onAdmin, notify }) {
   const queryFilters = useMemo(() => ({ ...filters, q: debouncedQ }), [filters, debouncedQ]);
   const catalog = useCatalogPage(queryFilters);
   const facets = useFacets();
-  const showcase = facets.showcase;
 
   const [cart, setCart] = useState(readCart);
   const [cartOpen, setCartOpen] = useState(false);
@@ -244,7 +230,7 @@ function Shop({ session, setSession, onAdmin, notify }) {
               <div><dt><Wallet size={22} aria-label="Mercado Pago" /></dt><dd>Mercado Pago o efectivo</dd></div>
             </dl>
           </div>
-          <Showcase products={showcase} onOpen={setDetailProduct} />
+          <CleaningScene />
         </section>
 
         <section className="catalog wrap" id="catalogo" ref={catalogRef} aria-labelledby="catalog-title">

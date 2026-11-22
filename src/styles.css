@@ -605,3 +605,69 @@ p { margin: 0; }
 @media (max-width: 640px) {
   .result__facts { grid-template-columns: 1fr 1fr; }
 }
+
+/* Home hero: line-art cleaning scene */
+.scene { position: relative; width: 100%; max-height: 560px; aspect-ratio: 1 / 1; justify-self: end; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: radial-gradient(circle at 50% 42%, rgba(217, 180, 94, .08), transparent 62%), linear-gradient(160deg, var(--panel-soft), var(--panel) 70%); box-shadow: inset 0 1px rgba(255, 231, 177, .04), 0 30px 80px rgba(0, 0, 0, .35); animation: rise .9s .15s var(--ease) both; }
+.scene__svg { width: 100%; height: 100%; overflow: visible; }
+.scene__stroke { fill: none; stroke: var(--gold); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.scene__stroke--thin { stroke: var(--gold-dim); stroke-width: 1.6; }
+.scene__draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: scene-draw 1.6s .3s cubic-bezier(.6, 0, .2, 1) forwards; }
+@keyframes scene-draw { to { stroke-dashoffset: 0; } }
+.scene__ring { fill: none; stroke: rgba(217, 180, 94, .28); stroke-width: 1; stroke-dasharray: .006 .014; transform-origin: 260px 260px; animation: scene-spin 80s linear infinite; }
+.scene__ring--inner { stroke: rgba(217, 180, 94, .10); stroke-dasharray: none; animation: none; }
+@keyframes scene-spin { to { transform: rotate(360deg); } }
+.scene__pin { fill: var(--gold-dim); }
+
+.scene__swing { transform-box: fill-box; transform-origin: 50% 0; animation: scene-sway 4.6s ease-in-out infinite alternate; }
+.scene__swing--towel { animation-duration: 5.4s; animation-delay: -1.2s; }
+.scene__swing--sock { animation-duration: 3.8s; animation-delay: -.6s; }
+@keyframes scene-sway { from { transform: rotate(-3.5deg); } to { transform: rotate(3.5deg); } }
+
+.scene__liquid { fill: rgba(217, 180, 94, .16); }
+.scene__label { fill: rgba(217, 180, 94, .1); stroke: var(--gold-dim); stroke-width: 1.4; }
+.scene__label-drop { fill: var(--gold); }
+.scene__trigger { transform-box: fill-box; transform-origin: 0 0; animation: scene-squeeze 7s ease-in-out infinite; }
+@keyframes scene-squeeze { 0%, 3%, 12%, 100% { transform: rotate(0); } 6%, 9% { transform: rotate(-16deg); } }
+.scene__bottle { animation: scene-bottle 7s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes scene-bottle { 0%, 3%, 14%, 100% { transform: rotate(0); } 7% { transform: rotate(-2deg); } }
+
+.scene__drop { fill: var(--gold-bright); opacity: 0; animation: scene-mist 7s cubic-bezier(.2, .7, .3, 1) infinite; animation-delay: var(--d); }
+@keyframes scene-mist { 0%, 5% { opacity: 0; transform: translate(0, 0) scale(.4); } 9% { opacity: 1; } 22% { opacity: 0; transform: translate(var(--x), var(--y)) scale(1); } 100% { opacity: 0; transform: translate(var(--x), var(--y)); } }
+.scene__cone { fill: rgba(240, 206, 120, .14); opacity: 0; transform-box: fill-box; transform-origin: 0 50%; animation: scene-cone 7s ease-out infinite; }
+@keyframes scene-cone { 0%, 5% { opacity: 0; transform: scaleX(.2); } 10% { opacity: 1; transform: scaleX(1); } 20%, 100% { opacity: 0; transform: scaleX(1.1); } }
+
+.scene__dirt { fill: rgba(170, 146, 98, .34); animation: scene-dirt 7s linear infinite; }
+.scene__dirt .scene__streak { fill: none; stroke: rgba(170, 146, 98, .45); stroke-width: 3; stroke-linecap: round; }
+@keyframes scene-dirt { 0%, 86% { opacity: 1; } 88%, 93% { opacity: 0; } 100% { opacity: 1; } }
+.scene__wipe { animation: scene-wipe 7s cubic-bezier(.45, 0, .55, 1) infinite; }
+@keyframes scene-wipe { 0%, 24% { transform: translateX(0); } 58%, 87% { transform: translateX(210px); } 88%, 100% { transform: translateX(0); } }
+.scene__sponge { opacity: 0; animation: scene-sponge 7s cubic-bezier(.45, 0, .55, 1) infinite; }
+.scene__sponge-body { fill: rgba(240, 206, 120, .22); stroke: var(--gold-bright); stroke-width: 2; }
+@keyframes scene-sponge {
+  0%, 20% { opacity: 0; transform: translate(276px, 282px) rotate(-8deg); }
+  24% { opacity: 1; transform: translate(282px, 290px) rotate(-8deg); }
+  35% { transform: translate(322px, 386px) rotate(6deg); }
+  46% { transform: translate(370px, 292px) rotate(-6deg); }
+  57% { opacity: 1; transform: translate(426px, 388px) rotate(8deg); }
+  63%, 100% { opacity: 0; transform: translate(440px, 400px) rotate(8deg); }
+}
+.scene__shine { fill: rgba(255, 240, 200, .16); transform: translateX(-140px); animation: scene-shine 7s ease-in-out infinite; }
+@keyframes scene-shine { 0%, 58% { transform: translateX(-140px); } 74%, 100% { transform: translateX(240px); } }
+.scene__spark { fill: var(--gold-bright); opacity: 0; transform-box: fill-box; transform-origin: center; animation: scene-spark 7s ease-out infinite; filter: drop-shadow(0 0 6px rgba(240, 206, 120, .7)); }
+.scene__spark--2 { animation-delay: .25s; }
+.scene__spark--3 { animation-delay: .5s; }
+@keyframes scene-spark { 0%, 58% { opacity: 0; transform: scale(.2) rotate(0); } 64% { opacity: 1; transform: scale(1.1) rotate(45deg); } 72% { opacity: .9; transform: scale(.9) rotate(70deg); } 82%, 100% { opacity: 0; transform: scale(.3) rotate(90deg); } }
+
+.scene__bubble { opacity: 0; animation: scene-bubble 6.5s ease-in infinite; animation-delay: var(--delay); }
+.scene__bubble circle { fill: rgba(240, 206, 120, .05); stroke: rgba(240, 206, 120, .55); stroke-width: 1.3; }
+.scene__bubble path { fill: none; stroke: rgba(255, 240, 200, .7); stroke-width: 1.3; stroke-linecap: round; }
+@keyframes scene-bubble { 0% { opacity: 0; transform: translate(0, 0); } 12% { opacity: 1; } 70% { opacity: .8; } 100% { opacity: 0; transform: translate(8px, -170px); } }
+
+@media (max-width: 860px) { .scene { justify-self: stretch; max-height: 440px; aspect-ratio: 5 / 4; } }
+@media (max-width: 640px) { .scene { aspect-ratio: 1 / 1; max-height: 380px; border-radius: 18px; } }
+@media (prefers-reduced-motion: reduce) {
+  .scene__draw { stroke-dashoffset: 0; animation: none; }
+  .scene__dirt, .scene__sponge, .scene__drop, .scene__cone, .scene__bubble { display: none; }
+  .scene__spark { opacity: 1; transform: none; animation: none; }
+  .scene__ring, .scene__swing, .scene__trigger, .scene__bottle, .scene__shine, .scene__wipe { animation: none; }
+}
