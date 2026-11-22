@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AlertCircle, LockKeyhole, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Bell, LockKeyhole, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { money } from '../lib/format.js';
 import Modal from './Modal.jsx';
 
@@ -20,7 +20,24 @@ const mpConnectMessages = {
   failed: 'Falló el callback OAuth. No se guardó la conexión; revisá los registros de funciones de Vercel para ver el detalle.',
 };
 
-const statusLabel = status => (status === 'paid' ? 'Pago verificado' : status === 'failed' ? 'Pago rechazado' : 'Pago pendiente');
+const statusLabel = status => (status === 'paid' ? 'Pagado' : status === 'failed' ? 'Pago rechazado' : 'Pago pendiente');
+const ORDER_LABEL = {
+  pending_review: 'Nuevo, sin aceptar', awaiting_payment: 'Esperando pago', confirmed: 'Pagado, a preparar',
+  preparing: 'En preparación', ready_for_pickup: 'Listo para retirar', delivered: 'Entregado', cancelled: 'Cancelado',
+};
+const FILTERS = [['active', 'En curso'], ['pending_review', 'Nuevos'], ['done', 'Cerrados'], ['all', 'Todos']];
+const isActive = order => !['delivered', 'cancelled'].includes(order.order_status) && !(order.order_status === 'awaiting_payment' && order.payment_method === 'mercado_pago');
+
+function actionsFor(order) {
+  const cash = order.payment_method === 'efectivo';
+  switch (order.order_status) {
+    case 'pending_review': return [['accept', 'Aceptar'], ['reject', 'Rechazar']];
+    case 'confirmed': return [['ready', 'Listo para retirar'], ['deliver', 'Entregado']];
+    case 'preparing': return [['ready', 'Listo para retirar'], ['deliver', cash ? 'Cobrado y entregado' : 'Entregado'], ...(cash ? [['reject', 'Cancelar']] : [])];
+    case 'ready_for_pickup': return [['deliver', cash ? 'Cobrado y entregado' : 'Entregado'], ...(cash ? [['reject', 'Cancelar']] : [])];
+    default: return [];
+  }
+}
 
 export default function OrderMonitor({ onClose, connectionResult }) {
   const [password, setPassword] = useState('');
@@ -30,6 +47,8 @@ export default function OrderMonitor({ onClose, connectionResult }) {
   const [busy, setBusy] = useState(false);
   const [sellerConnection, setSellerConnection] = useState(null);
   const [connectionError, setConnectionError] = useState('');
+  const [filter, setFilter] = useState('active');
+  const [working, setWorking] = useState('');
   const load = async () => {
     const response = await fetch('/api/admin/orders', { credentials: 'same-origin' });
     const data = await response.json();
@@ -54,6 +73,30 @@ export default function OrderMonitor({ onClose, connectionResult }) {
     try { await load(); } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
   useEffect(() => { load().catch(() => {}); }, []);
+  // While the panel is open and signed in, new orders show up every minute without pressing Actualizar.
+  useEffect(() => {
+    if (!loggedIn) return undefined;
+    const timer = window.setInterval(() => { if (!document.hidden) load().catch(() => {}); }, 60000);
+    return () => window.clearInterval(timer);
+  }, [loggedIn]);
+  const act = async (order, action) => {
+    if (action === 'reject' && !window.confirm(`¿Cancelar el pedido ${order.order_number}? El stock reservado vuelve al inventario.`)) return;
+    setWorking(`${order.id}:${action}`); setError('');
+    try {
+      const response = await fetch('/api/admin/order-action', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.id, action }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo actualizar el pedido.');
+      await load();
+    } catch (err) { setError(err.message); }
+    finally { setWorking(''); }
+  };
+  const newCount = orders.filter(order => order.order_status === 'pending_review').length;
+  const visible = useMemo(() => orders.filter(order => (
+    filter === 'all' ? true
+      : filter === 'pending_review' ? order.order_status === 'pending_review'
+        : filter === 'done' ? !isActive(order)
+          : isActive(order)
+  )), [orders, filter]);
 
   const env = sellerConnection?.environment;
   return (
@@ -83,19 +126,33 @@ export default function OrderMonitor({ onClose, connectionResult }) {
           {sellerConnection?.sellerMatchesTestUser === false && <p className="alert alert--error" role="alert"><AlertCircle size={16} />La cuenta conectada no coincide con la cuenta vendedora de prueba configurada.</p>}
           {sellerConnection?.sellerIsTestAccount && <p className="alert alert--error" role="alert"><AlertCircle size={16} />La cuenta conectada es de prueba. En producción no se habilitarán cobros hasta conectar una cuenta real.</p>}
           {connectionError && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{connectionError}</p>}
-          <p className="note">El pedido se guarda y el pago se confirma mediante el webhook de Mercado Pago. Esta aplicación no modifica el stock del catálogo.</p>
+          <p className="note">Mercado Pago descuenta el stock cuando el webhook confirma el pago. Efectivo lo reserva al enviar el pedido y lo devuelve si lo cancelás.</p>
+          {newCount > 0 && <p className="alert admin__new" role="status"><Bell size={16} />Tenés {newCount} {newCount === 1 ? 'pedido nuevo' : 'pedidos nuevos'} en efectivo para aceptar o rechazar.</p>}
+          <div className="admin__filters" role="tablist" aria-label="Filtrar pedidos">
+            {FILTERS.map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={filter === value} className={`chip ${filter === value ? 'is-selected' : ''}`} onClick={() => setFilter(value)}>{label}{value === 'pending_review' && newCount > 0 ? ` (${newCount})` : ''}</button>)}
+          </div>
           <div className="admin__toolbar">
-            <span>{orders.length} pedidos recientes</span>
+            <span>{visible.length} de {orders.length} pedidos</span>
             <button className="button button--ghost button--small" type="button" onClick={refresh} disabled={busy}><RefreshCw size={15} /> Actualizar</button>
           </div>
           <div className="admin__orders">
-            {orders.length === 0 ? <p className="note">Todavía no hay pedidos.</p> : orders.map(order => (
-              <article className="admin-order" key={order.id}>
-                <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.payment_status}`}>{statusLabel(order.payment_status)}</span></header>
+            {visible.length === 0 ? <p className="note">No hay pedidos en esta vista.</p> : visible.map(order => (
+              <article className={`admin-order ${order.order_status === 'pending_review' ? 'admin-order--new' : ''}`} key={order.id}>
+                <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{ORDER_LABEL[order.order_status] || order.order_status}</span></header>
                 <p>{order.customer_name} · {order.customer_email}</p>
                 <p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {order.pickup_point}</p>
                 <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>
-                <footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : order.payment_method}</span><strong>{money(order.total_amount)}</strong></footer>
+                {order.stock_shortage?.length > 0 && <p className="alert alert--error"><AlertCircle size={16} />Faltó stock al descontar: revisá {order.stock_shortage.length === 1 ? 'un producto' : `${order.stock_shortage.length} productos`} antes de prepararlo.</p>}
+                <footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : 'Efectivo al retirar'} · {statusLabel(order.payment_status)}</span><strong>{money(order.total_amount)}</strong></footer>
+                {actionsFor(order).length > 0 && (
+                  <div className="admin-order__actions">
+                    {actionsFor(order).map(([action, label]) => (
+                      <button key={action} type="button" className={`button button--small ${action === 'reject' ? 'button--ghost' : action === 'accept' || action === 'deliver' ? 'button--gold' : 'button--outline'}`} disabled={Boolean(working)} onClick={() => act(order, action)}>
+                        {working === `${order.id}:${action}` ? 'Guardando…' : label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </article>
             ))}
           </div>

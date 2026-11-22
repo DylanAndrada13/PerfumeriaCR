@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Check, ChevronDown, CircleUserRound, LogOut, MapPin, Menu, MessageCircle, PackageSearch,
+  Check, ChevronDown, CircleUserRound, LogOut, MapPin, Menu, MessageCircle, Package, PackageSearch,
   RefreshCw, Search, ShoppingBag, SlidersHorizontal, Store, Wallet, X,
 } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
@@ -8,7 +8,7 @@ import { money, pickUpPoints, readCart, saveCart, sameText } from './lib/format.
 import { DEFAULT_FILTERS, PAGE_SIZE, filtersFromUrl, useCatalogPage, useDebounced, useFacets, useFreshProducts, writeFiltersToUrl } from './lib/catalog.js';
 import { Pagination, ProductCard, ProductImage, SkeletonCard } from './components/Products.jsx';
 import { ActiveFilters, FilterPanel } from './components/Filters.jsx';
-import { CartDialog, CheckoutDialog, ProductDialog } from './components/Dialogs.jsx';
+import { CartDialog, CheckoutDialog, MyOrdersDialog, OrderResultDialog, ProductDialog } from './components/Dialogs.jsx';
 import { AuthDialog, AuthGate, BootSplash, IntroOverlay, Logo, PasswordResetDialog } from './components/Auth.jsx';
 import OrderMonitor from './components/OrderMonitor.jsx';
 import Modal from './components/Modal.jsx';
@@ -31,7 +31,7 @@ function Brand({ onClick }) {
   );
 }
 
-function AccountMenu({ session, firstName, onSignOut }) {
+function AccountMenu({ session, firstName, onSignOut, onOrders }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -49,6 +49,7 @@ function AccountMenu({ session, firstName, onSignOut }) {
       {open && (
         <div className="account__menu">
           <p><strong>{session.user.user_metadata?.full_name || firstName}</strong><span>{session.user.email}</span></p>
+          <button type="button" onClick={() => { setOpen(false); onOrders(); }}><Package size={16} /> Mis pedidos</button>
           <button type="button" onClick={() => { setOpen(false); onSignOut(); }}><LogOut size={16} /> Cerrar sesión</button>
         </div>
       )}
@@ -89,6 +90,11 @@ function Shop({ session, setSession, onAdmin, notify }) {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [returnedOrder, setReturnedOrder] = useState(() => new URLSearchParams(window.location.search).get('pedido'));
   const [returnedOrderStatus, setReturnedOrderStatus] = useState(null);
+  const [returnPollDone, setReturnPollDone] = useState(false);
+  const [cashResult, setCashResult] = useState(null);
+  const [ordersOpen, setOrdersOpen] = useState(false);
+  // Mercado Pago appends its own status to the return URL. It is only a hint for the message; the webhook decides.
+  const [mpHint] = useState(() => { const params = new URLSearchParams(window.location.search); return params.get('collection_status') || params.get('status') || ''; });
   const searchRef = useRef(null);
   const catalogRef = useRef(null);
 
@@ -124,12 +130,15 @@ function Shop({ session, setSession, onAdmin, notify }) {
         if (!alive) return;
         setReturnedOrderStatus(result.order);
         if (['paid', 'failed'].includes(result.order.payment_status)) return;
+        // Without an approval from Mercado Pago there is nothing to wait for.
+        if (mpHint !== 'approved' && mpHint !== 'in_process' && mpHint !== 'pending') { setReturnPollDone(true); return; }
       } catch (error) { if (alive) setReturnedOrderStatus({ error: error.message }); }
       if (alive && attempt + 1 < delays.length) timer = window.setTimeout(() => check(attempt + 1), delays[attempt + 1]);
+      else if (alive) setReturnPollDone(true);
     };
     check(0);
     return () => { alive = false; window.clearTimeout(timer); };
-  }, [returnedOrder, session?.access_token]);
+  }, [returnedOrder, session?.access_token, mpHint]);
   useEffect(() => {
     const onShortcut = event => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
@@ -171,6 +180,23 @@ function Shop({ session, setSession, onAdmin, notify }) {
   const toTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); setMobileMenu(false); };
   const firstName = session?.user?.user_metadata?.full_name?.split(' ')[0] || 'Mi cuenta';
 
+  const returnResult = (() => {
+    const order = returnedOrderStatus && !returnedOrderStatus.error
+      ? { ...returnedOrderStatus, items: returnedOrderStatus.web_order_items || [] }
+      : { order_number: returnedOrder };
+    if (returnedOrderStatus?.error) return { state: 'error', error: returnedOrderStatus.error, order };
+    if (returnedOrderStatus?.payment_status === 'paid') return { state: 'paid', order };
+    if (returnedOrderStatus?.payment_status === 'failed') return { state: 'failed', order };
+    if (!returnPollDone) return { state: 'checking', order };
+    return { state: mpHint === 'approved' || mpHint === 'in_process' || mpHint === 'pending' ? 'pending' : 'failed', order };
+  })();
+  const closeReturn = () => {
+    setReturnedOrder(null);
+    const url = new URL(window.location.href);
+    ['pedido', 'collection_id', 'collection_status', 'payment_id', 'status', 'external_reference', 'payment_type', 'merchant_order_id', 'preference_id', 'site_id', 'processing_mode', 'merchant_account_id'].forEach(key => url.searchParams.delete(key));
+    window.history.replaceState({}, '', url);
+  };
+
   const from = catalog.total ? (filters.page - 1) * PAGE_SIZE + 1 : 0;
   const to = Math.min(catalog.total, filters.page * PAGE_SIZE);
   const activeCount = [filters.category, filters.brand, filters.inStock].filter(Boolean).length;
@@ -194,7 +220,7 @@ function Shop({ session, setSession, onAdmin, notify }) {
             {filters.q ? <button type="button" className="search__clear" onClick={() => updateFilters({ q: '' })} aria-label="Borrar búsqueda"><X size={15} /></button> : <kbd>Ctrl K</kbd>}
           </form>
           <div className="header-actions">
-            <AccountMenu session={session} firstName={firstName} onSignOut={signOut} />
+            <AccountMenu session={session} firstName={firstName} onSignOut={signOut} onOrders={() => setOrdersOpen(true)} />
             <button className="header-action header-action--cart" type="button" onClick={() => setCartOpen(true)} aria-label={`Abrir carrito, ${cartCount} artículos`}>
               <ShoppingBag size={20} /><span>Carrito</span>{cartCount > 0 && <b key={cartCount}>{cartCount}</b>}
             </button>
@@ -204,21 +230,10 @@ function Shop({ session, setSession, onAdmin, notify }) {
       </header>
 
       <main>
-        {returnedOrder && (
-          <div className={`order-return wrap order-return--${returnedOrderStatus?.payment_status || 'pending'}`} role="status">
-            <span className="order-return__icon">{returnedOrderStatus?.payment_status === 'paid' ? <Check size={18} /> : <RefreshCw size={17} className={returnedOrderStatus?.payment_status === 'failed' ? '' : 'spin'} />}</span>
-            <div>
-              <strong>{returnedOrderStatus?.payment_status === 'paid' ? 'Pago verificado' : returnedOrderStatus?.payment_status === 'failed' ? 'Pago no confirmado' : 'Estamos verificando tu pago'}</strong>
-              <span>Pedido {returnedOrder} · {returnedOrderStatus?.error || (returnedOrderStatus?.payment_status === 'paid' ? 'Recibimos la confirmación segura de Mercado Pago.' : 'Volver a esta página no confirma el pago; esperamos la validación de Mercado Pago.')}</span>
-            </div>
-            <button type="button" className="icon-button icon-button--quiet" onClick={() => { setReturnedOrder(null); const url = new URL(window.location.href); url.searchParams.delete('pedido'); window.history.replaceState({}, '', url); }} aria-label="Cerrar aviso"><X size={17} /></button>
-          </div>
-        )}
-
         <section className="hero wrap" aria-labelledby="hero-title">
           <div className="hero__copy">
             <h1 id="hero-title">Perfumería y limpieza para retirar cerca de casa</h1>
-            <p className="hero__lead">Armá el pedido acá, pagalo con Mercado Pago y retiralo en el punto que te quede mejor.</p>
+            <p className="hero__lead">Armá el pedido acá, pagalo con Mercado Pago o en efectivo al retirarlo en el punto que te quede mejor.</p>
             <div className="hero__actions">
               <button className="button button--gold button--large" type="button" onClick={() => scrollCatalog()}>Ver productos</button>
               <button className="button button--outline button--large" type="button" onClick={() => document.getElementById('retiro')?.scrollIntoView({ behavior: 'smooth' })}>Ver puntos de retiro</button>
@@ -226,7 +241,7 @@ function Shop({ session, setSession, onAdmin, notify }) {
             <dl className="hero__facts">
               <div><dt>{productTotal || '—'}</dt><dd>productos en el catálogo</dd></div>
               <div><dt>{pickUpPoints.length}</dt><dd>puntos de retiro</dd></div>
-              <div><dt><Wallet size={22} aria-label="Mercado Pago" /></dt><dd>pago con Mercado Pago</dd></div>
+              <div><dt><Wallet size={22} aria-label="Mercado Pago" /></dt><dd>Mercado Pago o efectivo</dd></div>
             </dl>
           </div>
           <Showcase products={showcase} onOpen={setDetailProduct} />
@@ -298,7 +313,7 @@ function Shop({ session, setSession, onAdmin, notify }) {
           </div>
           <ol className="how">
             <li><span>1</span><div><strong>Elegí los productos</strong><p>Buscá por nombre, marca o categoría y sumalos al carrito.</p></div></li>
-            <li><span>2</span><div><strong>Pagá con Mercado Pago</strong><p>Ingresás con tu cuenta y pagás con el saldo de Mercado Pago.</p></div></li>
+            <li><span>2</span><div><strong>Elegí cómo pagar</strong><p>Con saldo de Mercado Pago ahora, o en efectivo cuando lo retirás.</p></div></li>
             <li><span>3</span><div><strong>Retirá el pedido</strong><p>Lo buscás en el punto que elegiste con el número de pedido.</p></div></li>
           </ol>
           <ul className="points">
@@ -336,7 +351,10 @@ function Shop({ session, setSession, onAdmin, notify }) {
         </Modal>
       )}
       {cartOpen && <CartDialog items={cartItems} total={cartTotal} onClose={() => setCartOpen(false)} onQty={changeQty} onRemove={removeItem} onCheckout={startCheckout} />}
-      {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
+      {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onCashOrdered={(data, items) => { setCart([]); setCheckoutOpen(false); setCashResult({ state: 'cash', order: { order_number: data.orderNumber, pickup_point: data.pickupPoint, total_amount: data.total, payment_method: 'efectivo', items: items.map(item => ({ product_name: item.name, quantity: item.qty })) } }); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
+      {returnedOrder && <OrderResultDialog result={returnResult} onClose={closeReturn} onShowOrders={() => { closeReturn(); setOrdersOpen(true); }} />}
+      {cashResult && <OrderResultDialog result={cashResult} onClose={() => setCashResult(null)} onShowOrders={() => { setCashResult(null); setOrdersOpen(true); }} />}
+      {ordersOpen && <MyOrdersDialog session={session} onClose={() => setOrdersOpen(false)} />}
       {authOpen && <AuthDialog mode={authMode} onClose={() => setAuthOpen(false)} onSignedIn={nextSession => setSession(nextSession)} />}
       {detailProduct && <ProductDialog product={detailProduct} inCart={qtyInCart[detailProduct.id] || 0} onClose={() => setDetailProduct(null)} onAdd={addToCart} />}
     </div>

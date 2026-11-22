@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CATALOG_CACHE, catalogErrorMessage, getCatalogFacets, getCatalogPage, getProductsByIds } from './lib/server-catalog.js';
-import { createOrder, mercadoPagoWebhook, orderStatus, adminLogin, adminOrders } from './lib/order-api.js';
+import { createOrder, mercadoPagoWebhook, orderStatus, adminLogin, adminOrders, adminOrderAction, myOrders } from './lib/order-api.js';
 import { signUp } from './lib/auth-api.js';
 import { startMercadoPagoConnect, mercadoPagoOAuthCallback, mercadoPagoConnectionStatus } from './lib/mercadopago-oauth.js';
 
@@ -17,6 +17,8 @@ app.use(express.json({ limit: '32kb' }));
 app.post('/api/auth/signup', signUp);
 app.post('/api/orders/create', createOrder);
 app.get('/api/orders/status', orderStatus);
+app.get('/api/orders/mine', myOrders);
+app.post('/api/admin/order-action', adminOrderAction);
 app.post('/api/orders/webhook', mercadoPagoWebhook);
 app.post('/api/admin/login', adminLogin);
 app.get('/api/admin/orders', adminOrders);

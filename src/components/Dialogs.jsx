@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AlertCircle, ArrowLeft, CircleUserRound, LockKeyhole, MapPin, Minus, Plus, ShoppingBag, Trash2, Wallet, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertCircle, ArrowLeft, Banknote, CheckCircle2, CircleUserRound, Clock3, Loader2, LockKeyhole, MapPin, Minus, Package, Plus, ShoppingBag, Trash2, Wallet, X, XCircle } from 'lucide-react';
 import { money, pickUpPoints } from '../lib/format.js';
 import Modal from './Modal.jsx';
 import { ProductImage, availability } from './Products.jsx';
@@ -93,30 +93,42 @@ export function CartDialog({ items, total, onClose, onQty, onRemove, onCheckout 
   );
 }
 
-export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin, onOrdered }) {
+export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin, onOrdered, onCashOrdered }) {
   const [pickup, setPickup] = useState('');
+  const [method, setMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [checkoutKey] = useState(() => crypto.randomUUID());
+  const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
+  const cash = method === 'efectivo';
   const submit = async () => {
     setBusy(true); setError('');
     try {
       const response = await fetch('/api/orders/create', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ checkoutKey, pickupPoint: pickup, items: items.map(item => ({ id: item.id, quantity: item.qty })) }),
+        body: JSON.stringify({ checkoutKey, paymentMethod: method, pickupPoint: pickup, items: items.map(item => ({ id: item.id, quantity: item.qty })) }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'No se pudo iniciar el pago.');
+      if (!response.ok) {
+        // A rejected attempt saved nothing, so the next try gets a fresh key.
+        if (response.status !== 409 || !/en proceso/.test(data.error || '')) setCheckoutKey(crypto.randomUUID());
+        throw new Error(data.error || 'No se pudo enviar el pedido.');
+      }
+      if (data.paymentMethod === 'efectivo') { onCashOrdered(data, items); return; }
       let checkoutHost = '';
       try { checkoutHost = new URL(data.checkoutUrl).hostname; } catch { /* invalid URL */ }
       const trustedCheckout = checkoutHost === 'mercadopago.com' || checkoutHost.endsWith('.mercadopago.com') || checkoutHost === 'mercadopago.com.ar' || checkoutHost.endsWith('.mercadopago.com.ar');
       if (!trustedCheckout) throw new Error('La dirección de pago no pudo validarse. No salimos del sitio.');
       onOrdered();
       window.location.assign(data.checkoutUrl);
-    } catch (err) { setError(err.message || 'No se pudo iniciar el pago.'); }
+    } catch (err) { setError(err.message || 'No se pudo enviar el pedido.'); }
     finally { setBusy(false); }
   };
   const count = items.reduce((sum, item) => sum + item.qty, 0);
+  const label = busy
+    ? (cash ? 'Enviando pedido…' : 'Conectando con Mercado Pago…')
+    : !pickup ? 'Elegí un punto de retiro'
+      : !method ? 'Elegí cómo vas a pagar'
+        : cash ? 'Enviar pedido' : 'Pagar con Mercado Pago';
   return (
     <Modal onClose={onClose} labelledBy="checkout-title" className="sheet checkout">
       <div className="checkout__top">
@@ -126,7 +138,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
       <ol className="steps" aria-label="Pasos de la compra">
         <li className="is-done"><span>1</span>Carrito</li>
         <li className="is-current"><span>2</span>Retiro y pago</li>
-        <li><span>3</span>Mercado Pago</li>
+        <li><span>3</span>{cash ? 'Confirmación' : 'Pago'}</li>
       </ol>
       <h2 id="checkout-title" className="sheet__title">Retiro y pago</h2>
       <section className="checkout__section">
@@ -141,15 +153,108 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
       </section>
       <section className="checkout__section">
         <h3><Wallet size={17} /> Medio de pago</h3>
-        <div className="choice is-selected choice--static"><span className="choice__dot" aria-hidden="true" />Saldo de Mercado Pago</div>
-        <p className="note">Se paga con el saldo de una cuenta de Mercado Pago. No acepta tarjetas ni efectivo.</p>
+        <div className="choice-grid" role="radiogroup" aria-label="Medio de pago">
+          <button type="button" role="radio" aria-checked={method === 'mercado_pago'} className={`choice choice--tall ${method === 'mercado_pago' ? 'is-selected' : ''}`} onClick={() => setMethod('mercado_pago')}>
+            <span className="choice__dot" aria-hidden="true" /><span><strong>Mercado Pago</strong><small>Pagás ahora con el saldo de tu cuenta</small></span>
+          </button>
+          <button type="button" role="radio" aria-checked={cash} className={`choice choice--tall ${cash ? 'is-selected' : ''}`} onClick={() => setMethod('efectivo')}>
+            <span className="choice__dot" aria-hidden="true" /><Banknote size={18} className="choice__icon" /><span><strong>Efectivo al retirar</strong><small>Pagás en el punto de retiro</small></span>
+          </button>
+        </div>
+        {cash && <p className="note">El local revisa el pedido y te lo prepara. Separamos los productos apenas lo enviás; lo pagás en efectivo cuando lo retirás.</p>}
+        {method === 'mercado_pago' && <p className="note">Se paga con el saldo de una cuenta de Mercado Pago. No acepta tarjetas.</p>}
       </section>
       <div className="total-row total-row--boxed"><span>{count} {count === 1 ? 'artículo' : 'artículos'}</span><strong>{money(total)}</strong></div>
       {!session?.user
         ? <button className="button button--gold button--wide" type="button" onClick={onLogin}><CircleUserRound size={17} /> Ingresar para pagar</button>
-        : <button className="button button--gold button--wide" type="button" disabled={!pickup || busy || items.length === 0} onClick={submit}>{busy ? 'Conectando con Mercado Pago…' : pickup ? 'Pagar con Mercado Pago' : 'Elegí un punto de retiro'}</button>}
+        : <button className="button button--gold button--wide" type="button" disabled={!pickup || !method || busy || items.length === 0} onClick={submit}>{label}</button>}
       {error && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{error}</p>}
-      <p className="sheet__secure"><LockKeyhole size={14} /> El pedido queda pagado solo cuando Mercado Pago lo confirma.</p>
+      <p className="sheet__secure"><LockKeyhole size={14} /> {cash ? 'No se cobra nada ahora: pagás al retirar.' : 'El pedido queda pagado solo cuando Mercado Pago lo confirma.'}</p>
+    </Modal>
+  );
+}
+
+const STEP_TEXT = {
+  pending_review: 'Esperando que el local lo acepte',
+  awaiting_payment: 'Esperando el pago',
+  confirmed: 'Pago confirmado, en preparación',
+  preparing: 'En preparación',
+  ready_for_pickup: 'Listo para retirar',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+};
+export function orderStatusText(order) {
+  if (order.order_status === 'awaiting_payment' && order.payment_status === 'failed') return 'Pago rechazado';
+  return STEP_TEXT[order.order_status] || 'En proceso';
+}
+
+// Shown after a cash order is sent, and after coming back from Mercado Pago.
+export function OrderResultDialog({ result, onClose, onShowOrders }) {
+  const { state, order } = result;
+  const content = {
+    cash: { icon: <CheckCircle2 size={44} />, tone: 'ok', title: '¡Tu pedido fue enviado!', text: 'El local lo revisa y te lo prepara. Lo pagás en efectivo cuando lo retirás.' },
+    paid: { icon: <CheckCircle2 size={44} />, tone: 'ok', title: '¡Tu compra fue hecha!', text: 'Mercado Pago confirmó el pago. Te avisamos el estado en Mis pedidos; retiralo con el número de pedido.' },
+    checking: { icon: <Loader2 size={40} className="spin" />, tone: 'wait', title: 'Estamos confirmando tu pago', text: 'Mercado Pago nos avisa en unos segundos. No cierres esta pantalla.' },
+    pending: { icon: <Clock3 size={42} />, tone: 'wait', title: 'Tu pago está pendiente', text: 'Mercado Pago todavía no lo confirmó. Cuando se acredite, el pedido pasa a preparación; podés seguirlo en Mis pedidos.' },
+    failed: { icon: <XCircle size={42} />, tone: 'error', title: 'El pago no se completó', text: 'Mercado Pago no aprobó el pago y no se cobró nada. Podés volver a intentarlo desde el carrito.' },
+    error: { icon: <AlertCircle size={42} />, tone: 'error', title: 'No pudimos consultar el pedido', text: result.error || 'Revisá tu conexión. El estado también aparece en Mis pedidos.' },
+  }[state];
+  return (
+    <Modal onClose={onClose} labelledBy="result-title" className={`sheet sheet--narrow result result--${content.tone}`}>
+      <button className="icon-button modal__close" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
+      <span className="result__icon">{content.icon}</span>
+      <h2 id="result-title" className="sheet__title">{content.title}</h2>
+      <p className="sheet__intro">{content.text}</p>
+      {order?.order_number && (
+        <dl className="result__facts">
+          <div><dt>Pedido</dt><dd>{order.order_number}</dd></div>
+          {order.pickup_point && <div><dt>Retiro</dt><dd>{order.pickup_point}</dd></div>}
+          {order.total_amount != null && <div><dt>Total</dt><dd>{money(order.total_amount)}</dd></div>}
+          <div><dt>Pago</dt><dd>{order.payment_method === 'efectivo' ? 'Efectivo al retirar' : 'Mercado Pago'}</dd></div>
+        </dl>
+      )}
+      {order?.items?.length > 0 && (
+        <ul className="result__items">{order.items.map((item, i) => <li key={`${item.product_name}-${i}`}><span>{item.quantity} ×</span> {item.product_name}</li>)}</ul>
+      )}
+      <div className="result__actions">
+        <button className="button button--gold button--wide" type="button" onClick={onClose}>Seguir comprando</button>
+        <button className="button button--ghost button--wide" type="button" onClick={onShowOrders}>Ver mis pedidos</button>
+      </div>
+    </Modal>
+  );
+}
+
+export function MyOrdersDialog({ session, onClose }) {
+  const [state, setState] = useState({ loading: true, orders: [], error: '' });
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/orders/mine', { headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store' })
+      .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; })
+      .then(data => { if (alive) setState({ loading: false, orders: data.orders || [], error: '' }); })
+      .catch(error => { if (alive) setState({ loading: false, orders: [], error: error.message || 'No se pudieron cargar tus pedidos.' }); });
+    return () => { alive = false; };
+  }, [session.access_token]);
+  return (
+    <Modal onClose={onClose} variant="drawer" labelledBy="orders-title" className="drawer">
+      <header className="drawer__header">
+        <h2 id="orders-title" className="sheet__title">Mis pedidos</h2>
+        <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
+      </header>
+      <div className="drawer__items">
+        {state.loading && <p className="note my-orders__loading"><Loader2 size={16} className="spin" /> Cargando pedidos…</p>}
+        {state.error && <p className="alert alert--error"><AlertCircle size={16} />{state.error}</p>}
+        {!state.loading && !state.error && state.orders.length === 0 && (
+          <div className="empty-state empty-state--small"><Package size={28} strokeWidth={1.3} /><h3>Todavía no hiciste pedidos</h3><p>Cuando compres algo, lo vas a ver acá con su estado.</p></div>
+        )}
+        {state.orders.map(order => (
+          <article className="my-order" key={order.order_number}>
+            <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{orderStatusText(order)}</span></header>
+            <p>{new Date(order.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · Retiro en {order.pickup_point}</p>
+            <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>
+            <footer><span>{order.payment_method === 'efectivo' ? 'Efectivo al retirar' : 'Mercado Pago'}{order.payment_status === 'paid' ? ' · pagado' : ''}</span><strong>{money(order.total_amount)}</strong></footer>
+          </article>
+        ))}
+      </div>
     </Modal>
   );
 }
