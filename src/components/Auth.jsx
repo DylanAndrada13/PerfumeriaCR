@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, Eye, EyeOff, LockKeyhole, MapPin, ShoppingBag, Store, Wallet } from 'lucide-react';
 import { authReady, supabase } from '../lib/supabase.js';
-import { pickUpPoints } from '../lib/format.js';
+import { localPickups, pickUpPoints } from '../lib/format.js';
 import Modal from './Modal.jsx';
 
 export const LOGO = { small: '/brand/logo-160.webp', medium: '/brand/logo-384.webp', large: '/brand/logo-768.webp' };
@@ -49,6 +49,7 @@ export function AuthForm({ initialMode = 'signup', onSignedIn }) {
   const [mode, setMode] = useState(initialMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [website, setWebsite] = useState('');
   const [busy, setBusy] = useState(false);
@@ -66,7 +67,7 @@ export function AuthForm({ initialMode = 'signup', onSignedIn }) {
       if (mode === 'signup') {
         const response = await fetch('/api/auth/signup', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password, website }),
+          body: JSON.stringify({ name, email, phone, password, website }),
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 409 && data.exists) { switchMode('login'); setMessage(data.error); return; }
@@ -98,6 +99,7 @@ export function AuthForm({ initialMode = 'signup', onSignedIn }) {
       {mode === 'recover' && <h2 className="auth-form__title">Recuperar contraseña</h2>}
       <form onSubmit={submit} className="form" noValidate={false}>
         {mode === 'signup' && <label className="field">Nombre y apellido<input autoComplete="name" value={name} onChange={e => setName(e.target.value)} required minLength={2} maxLength={120} /></label>}
+        {mode === 'signup' && <label className="field">WhatsApp<input type="tel" inputMode="tel" autoComplete="tel" placeholder="11 2345 6789" value={phone} onChange={e => setPhone(e.target.value.replace(/[^\d\s()+-]/g, ''))} required minLength={8} maxLength={40} /><small className="field__hint">Te escribimos por acá para coordinar el día y la hora de retiro.</small></label>}
         <label className="field">Correo electrónico<input type="email" inputMode="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required /></label>
         {mode !== 'recover' && (
           <PasswordField
@@ -132,12 +134,12 @@ export function AuthGate({ onSignedIn, onAdmin }) {
       <div className="gate__inner">
         <section className="gate__brand" aria-labelledby="gate-title">
           <Logo size="medium" className="gate__logo" eager />
-          <h1 id="gate-title">Perfumería y limpieza con retiro en {pickUpPoints.length} puntos</h1>
+          <h1 id="gate-title">Perfumería y limpieza con retiro en el local o en un punto de encuentro</h1>
           <p>Creá tu cuenta para ver el catálogo, armar el pedido y pagarlo con Mercado Pago o en efectivo.</p>
           <ul className="gate__perks">
             <li><ShoppingBag size={18} /> Catálogo con precios y stock del local</li>
             <li><Wallet size={18} /> Pago con Mercado Pago o en efectivo al retirar</li>
-            <li><MapPin size={18} /> Retiro en {pickUpPoints.slice(0, 2).join(', ')} y {pickUpPoints.length - 2} puntos más</li>
+            <li><MapPin size={18} /> Retiro en {localPickups.join(' o ')}, o en {pickUpPoints.length} puntos de encuentro</li>
           </ul>
         </section>
         <section className="gate__panel" aria-label="Crear cuenta o ingresar">

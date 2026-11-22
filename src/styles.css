@@ -678,3 +678,15 @@ p { margin: 0; }
 .field textarea { width: 100%; min-height: 64px; border: 1px solid var(--line); border-radius: var(--radius-small); padding: 11px 14px; background: var(--ink); color: var(--paper); font: inherit; font-size: 16px; font-weight: 400; resize: vertical; transition: border-color .18s; }
 .field textarea:focus { outline: 0; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(217, 180, 94, .15); }
 @media (max-width: 560px) { .checkout__contact { grid-template-columns: 1fr; } }
+
+/* Checkout pickup dates */
+.checkout__section .choice-grid + .choice-grid { margin-top: 4px; }
+.pickup-dates { display: grid; gap: 10px; margin-top: 4px; }
+.pickup-dates__title { display: flex; justify-content: space-between; gap: 12px; margin: 0; color: var(--paper); font-size: 14px; font-weight: 500; }
+.pickup-dates__title span { color: var(--gold); font-variant-numeric: tabular-nums; }
+.pickup-dates__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+.date-chip { min-height: 42px; padding: 0 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-small); background: var(--ink); color: var(--paper); font-size: 14px; transition: border-color .15s, background .15s; }
+.date-chip::first-letter { text-transform: uppercase; }
+.date-chip:hover:not(:disabled) { border-color: var(--gold-dim); }
+.date-chip.is-selected { border-color: var(--gold); background: var(--gold); color: var(--ink); font-weight: 600; }
+.date-chip:disabled { opacity: .4; cursor: not-allowed; }

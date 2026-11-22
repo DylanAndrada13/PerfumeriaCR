@@ -4,7 +4,7 @@ import {
   RefreshCw, Search, ShoppingBag, SlidersHorizontal, Store, Wallet, X,
 } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
-import { money, pickUpPoints, readCart, saveCart, sameText } from './lib/format.js';
+import { localPickups, money, pickUpPoints, readCart, saveCart, sameText } from './lib/format.js';
 import { DEFAULT_FILTERS, PAGE_SIZE, filtersFromUrl, useCatalogPage, useDebounced, useFacets, useFreshProducts, writeFiltersToUrl } from './lib/catalog.js';
 import { Pagination, ProductCard, SkeletonCard } from './components/Products.jsx';
 import { ActiveFilters, FilterPanel } from './components/Filters.jsx';
@@ -226,7 +226,7 @@ function Shop({ session, setSession, onAdmin, notify }) {
             </div>
             <dl className="hero__facts">
               <div><dt>{productTotal || '—'}</dt><dd>productos en el catálogo</dd></div>
-              <div><dt>{pickUpPoints.length}</dt><dd>puntos de retiro</dd></div>
+              <div><dt>{pickUpPoints.length + localPickups.length}</dt><dd>lugares de retiro</dd></div>
               <div><dt><Wallet size={22} aria-label="Mercado Pago" /></dt><dd>Mercado Pago o efectivo</dd></div>
             </dl>
           </div>
@@ -295,14 +295,15 @@ function Shop({ session, setSession, onAdmin, notify }) {
         <section className="pickup wrap" id="retiro" aria-labelledby="pickup-title">
           <div className="pickup__intro">
             <h2 id="pickup-title">Cómo comprar y dónde retirar</h2>
-            <p>No hay envío a domicilio: elegís uno de los cinco puntos al pagar y lo pasás a buscar.</p>
+            <p>No hay envío a domicilio. Lo retirás en uno de nuestros locales o en un punto de encuentro, en una de las 3 fechas que elijas, y te confirmamos por WhatsApp.</p>
           </div>
           <ol className="how">
             <li><span>1</span><div><strong>Elegí los productos</strong><p>Buscá por nombre, marca o categoría y sumalos al carrito.</p></div></li>
             <li><span>2</span><div><strong>Elegí cómo pagar</strong><p>Con saldo de Mercado Pago ahora, o en efectivo cuando lo retirás.</p></div></li>
-            <li><span>3</span><div><strong>Retirá el pedido</strong><p>Lo buscás en el punto que elegiste con el número de pedido.</p></div></li>
+            <li><span>3</span><div><strong>Retirá el pedido</strong><p>En el local o en el punto de encuentro, con el número de pedido.</p></div></li>
           </ol>
           <ul className="points">
+            {localPickups.map(point => <li key={point}><Store size={18} /><span>{point}</span></li>)}
             {pickUpPoints.map(point => <li key={point}><MapPin size={18} /><span>{point}</span></li>)}
           </ul>
           <p className="pickup__help">¿Tenés una consulta sobre un producto o un pedido? <a className="text-link" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> Escribinos por WhatsApp</a></p>
@@ -337,7 +338,7 @@ function Shop({ session, setSession, onAdmin, notify }) {
         </Modal>
       )}
       {cartOpen && <CartDialog items={cartItems} total={cartTotal} onClose={() => setCartOpen(false)} onQty={changeQty} onRemove={removeItem} onCheckout={startCheckout} />}
-      {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onCashOrdered={(data, items) => { setCart([]); setCheckoutOpen(false); setCashResult({ state: 'cash', order: { order_number: data.orderNumber, pickup_point: data.pickupPoint, total_amount: data.total, payment_method: 'efectivo', items: items.map(item => ({ product_name: item.name, quantity: item.qty })) } }); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
+      {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onCashOrdered={(data, items) => { setCart([]); setCheckoutOpen(false); setCashResult({ state: 'cash', order: { order_number: data.orderNumber, pickup_point: data.pickupPoint, pickup_dates: data.pickupDates, total_amount: data.total, payment_method: 'efectivo', items: items.map(item => ({ product_name: item.name, quantity: item.qty })) } }); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
       {returnedOrder && <OrderResultDialog result={returnResult} onClose={closeReturn} onShowOrders={() => { closeReturn(); setOrdersOpen(true); }} />}
       {cashResult && <OrderResultDialog result={cashResult} onClose={() => setCashResult(null)} onShowOrders={() => { setCashResult(null); setOrdersOpen(true); }} />}
       {ordersOpen && <MyOrdersDialog session={session} onClose={() => setOrdersOpen(false)} />}
