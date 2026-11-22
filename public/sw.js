@@ -1,5 +1,5 @@
-const CACHE = 'cr-store-shell-v2';
-const SHELL = ['/', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'cr-store-shell-v3';
+const SHELL = ['/', '/manifest.webmanifest', '/brand/logo-160.webp', '/brand/logo-384.webp', '/brand/icon-192.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));

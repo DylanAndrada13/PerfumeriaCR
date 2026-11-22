@@ -82,25 +82,15 @@ export function useCatalogPage(filters) {
 }
 
 export function useFacets() {
-  const [facets, setFacets] = useState({ categories: [], brands: [], total: 0 });
+  const [facets, setFacets] = useState({ categories: [], brands: [], total: 0, showcase: [] });
   useEffect(() => {
     const controller = new AbortController();
-    getJson('/api/catalog/facets', controller.signal).then(setFacets).catch(() => {});
-    return () => controller.abort();
-  }, []);
-  return facets;
-}
-
-export function useShowcase() {
-  const [products, setProducts] = useState([]);
-  useEffect(() => {
-    const controller = new AbortController();
-    getJson('/api/catalog/products?page=1&pageSize=3&sort=recent&withImage=1&inStock=1', controller.signal)
-      .then(data => setProducts((data.products || []).map(normalize)))
+    getJson('/api/catalog/facets', controller.signal)
+      .then(data => setFacets({ categories: [], brands: [], total: 0, ...data, showcase: (data.showcase || []).map(normalize) }))
       .catch(() => {});
     return () => controller.abort();
   }, []);
-  return products;
+  return facets;
 }
 
 // Re-reads the products in the cart (one request for all of them) so names, prices and stock stay current.

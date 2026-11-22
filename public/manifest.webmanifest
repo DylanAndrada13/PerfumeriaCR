@@ -2,7 +2,7 @@
   "id": "/",
   "name": "CR Perfumería & Limpieza",
   "short_name": "CR Perfumería",
-  "description": "La tienda online de CR Perfumería & Limpieza",
+  "description": "Perfumería y limpieza con retiro en 5 puntos. Pedí online y pagá con Mercado Pago.",
   "lang": "es-AR",
   "start_url": "/",
   "scope": "/",
@@ -11,6 +11,8 @@
   "background_color": "#0b0a08",
   "theme_color": "#0b0a08",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

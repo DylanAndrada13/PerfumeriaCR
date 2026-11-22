@@ -1,80 +1,11 @@
 import { useState } from 'react';
-import { AlertCircle, ArrowLeft, ArrowRight, Check, CircleUserRound, LockKeyhole, MapPin, Minus, Plus, ShoppingBag, Trash2, Wallet, X } from 'lucide-react';
-import { authReady, supabase } from '../lib/supabase.js';
+import { AlertCircle, ArrowLeft, CircleUserRound, LockKeyhole, MapPin, Minus, Plus, ShoppingBag, Trash2, Wallet, X } from 'lucide-react';
 import { money, pickUpPoints } from '../lib/format.js';
 import Modal from './Modal.jsx';
 import { ProductImage, availability } from './Products.jsx';
 
 function CloseButton({ onClose, label = 'Cerrar' }) {
   return <button className="icon-button modal__close" type="button" onClick={onClose} aria-label={label}><X size={20} /></button>;
-}
-
-export function AuthDialog({ mode, onMode, onClose, onSignedIn }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-
-  const submit = async event => {
-    event.preventDefault();
-    setError(''); setMessage('');
-    if (!authReady || !supabase) {
-      setError('Falta configurar la clave pública de Supabase Auth para habilitar cuentas.');
-      return;
-    }
-    setBusy(true);
-    try {
-      if (mode === 'signup') {
-        const { data, error: authError } = await supabase.auth.signUp({
-          email, password,
-          options: { data: { full_name: name.trim() } },
-        });
-        if (authError) throw authError;
-        if (data.session) { onSignedIn(data.session); onClose(); }
-        else setMessage('Te enviamos un correo para confirmar tu cuenta.');
-      } else if (mode === 'recover') {
-        const { error: authError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-        if (authError) throw authError;
-        setMessage('Si el correo está registrado, vas a recibir un enlace para cambiar la contraseña.');
-      } else {
-        const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-        if (authError) throw authError;
-        onSignedIn(data.session); onClose();
-      }
-    } catch (authError) { setError(authError.message || 'No se pudo completar el acceso.'); }
-    finally { setBusy(false); }
-  };
-
-  const title = mode === 'signup' ? 'Crear cuenta' : mode === 'recover' ? 'Recuperar contraseña' : 'Ingresar a tu cuenta';
-  const intro = mode === 'signup'
-    ? 'Con tu cuenta pagás con Mercado Pago y seguís el estado de cada pedido.'
-    : mode === 'recover' ? 'Escribí tu correo y te mandamos un enlace para crear una contraseña nueva.' : 'Ingresá con tu correo para pagar el pedido.';
-  return (
-    <Modal onClose={onClose} labelledBy="auth-title" className="sheet sheet--narrow">
-      <CloseButton onClose={onClose} />
-      <span className="sheet__mark"><CircleUserRound size={22} /></span>
-      <h2 id="auth-title" className="sheet__title">{title}</h2>
-      <p className="sheet__intro">{intro}</p>
-      <form onSubmit={submit} className="form">
-        {mode === 'signup' && <label className="field">Nombre y apellido<input autoComplete="name" value={name} onChange={e => setName(e.target.value)} required minLength={2} /></label>}
-        <label className="field">Correo electrónico<input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required /></label>
-        {mode !== 'recover' && <label className="field">Contraseña<input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} /></label>}
-        {!authReady && <p className="note">La conexión de cuentas se habilita al configurar Supabase Auth.</p>}
-        {error && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{error}</p>}
-        {message && <p className="alert" role="status"><Check size={16} />{message}</p>}
-        <button className="button button--gold button--wide" type="submit" disabled={busy}>{busy ? 'Un momento…' : mode === 'signup' ? 'Crear cuenta' : mode === 'recover' ? 'Enviar enlace' : 'Ingresar'}</button>
-      </form>
-      <div className="sheet__switches">
-        {mode === 'login' && <button type="button" className="text-link" onClick={() => onMode('recover')}>Olvidé mi contraseña</button>}
-        {mode === 'recover'
-          ? <button type="button" className="text-link" onClick={() => onMode('login')}>Volver a ingresar</button>
-          : <button type="button" className="text-link" onClick={() => onMode(mode === 'signup' ? 'login' : 'signup')}>{mode === 'signup' ? 'Ya tengo cuenta' : 'Crear una cuenta'}</button>}
-      </div>
-      <p className="sheet__secure"><LockKeyhole size={14} /> Acceso seguro con Supabase</p>
-    </Modal>
-  );
 }
 
 export function ProductDialog({ product, inCart, onClose, onAdd }) {
@@ -154,7 +85,7 @@ export function CartDialog({ items, total, onClose, onQty, onRemove, onCheckout 
           {blocked
             ? <p className="alert alert--error"><AlertCircle size={16} />Quitá los productos sin stock para seguir.</p>
             : <p className="note">El precio y el stock se confirman otra vez al pagar.</p>}
-          <button className="button button--gold button--wide" type="button" disabled={blocked} onClick={onCheckout}>Elegir punto de retiro <ArrowRight size={17} /></button>
+          <button className="button button--gold button--wide" type="button" disabled={blocked} onClick={onCheckout}>Elegir punto de retiro</button>
           <button className="button button--ghost button--wide" type="button" onClick={onClose}>Seguir comprando</button>
         </footer>
       )}

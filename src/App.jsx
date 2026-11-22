@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowRight, Check, ChevronDown, CircleUserRound, LogOut, MapPin, Menu, PackageSearch,
+  Check, ChevronDown, CircleUserRound, LogOut, MapPin, Menu, MessageCircle, PackageSearch,
   RefreshCw, Search, ShoppingBag, SlidersHorizontal, Store, Wallet, X,
 } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
 import { money, pickUpPoints, readCart, saveCart, sameText } from './lib/format.js';
-import { DEFAULT_FILTERS, PAGE_SIZE, filtersFromUrl, useCatalogPage, useDebounced, useFacets, useFreshProducts, useShowcase, writeFiltersToUrl } from './lib/catalog.js';
+import { DEFAULT_FILTERS, PAGE_SIZE, filtersFromUrl, useCatalogPage, useDebounced, useFacets, useFreshProducts, writeFiltersToUrl } from './lib/catalog.js';
 import { Pagination, ProductCard, ProductImage, SkeletonCard } from './components/Products.jsx';
 import { ActiveFilters, FilterPanel } from './components/Filters.jsx';
-import { AuthDialog, CartDialog, CheckoutDialog, ProductDialog } from './components/Dialogs.jsx';
+import { CartDialog, CheckoutDialog, ProductDialog } from './components/Dialogs.jsx';
+import { AuthDialog, AuthGate, BootSplash, IntroOverlay, Logo, PasswordResetDialog } from './components/Auth.jsx';
 import OrderMonitor from './components/OrderMonitor.jsx';
 import Modal from './components/Modal.jsx';
+
+const WHATSAPP_URL = 'https://wa.me/5491133697693';
 
 const SORT_OPTIONS = [
   ['name', 'Nombre (A a Z)'],
@@ -22,15 +25,40 @@ const SORT_OPTIONS = [
 function Brand({ onClick }) {
   return (
     <button className="brand" type="button" onClick={onClick} aria-label="CR Perfumería, ir al inicio">
-      <span className="brand__seal" aria-hidden="true">CR</span>
+      <Logo className="brand__logo" eager />
       <span className="brand__name">CR <em>Perfumería</em><small>& Limpieza</small></span>
     </button>
   );
 }
 
+function AccountMenu({ session, firstName, onSignOut }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = event => { if (event.type === 'keydown' ? event.key === 'Escape' : !ref.current?.contains(event.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
+  }, [open]);
+  return (
+    <div className="account" ref={ref}>
+      <button className="header-action" type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} aria-haspopup="true" aria-label={`Tu cuenta, ${firstName}`}>
+        <CircleUserRound size={20} /><span>{firstName}</span><ChevronDown size={14} className="header-action__extra" />
+      </button>
+      {open && (
+        <div className="account__menu">
+          <p><strong>{session.user.user_metadata?.full_name || firstName}</strong><span>{session.user.email}</span></p>
+          <button type="button" onClick={() => { setOpen(false); onSignOut(); }}><LogOut size={16} /> Cerrar sesión</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Showcase({ products, onOpen }) {
   if (!products.length) {
-    return <div className="showcase showcase--empty" aria-hidden="true"><span className="showcase__monogram">CR</span></div>;
+    return <div className="showcase showcase--empty" aria-hidden="true"><Logo size="medium" className="showcase__logo" /></div>;
   }
   return (
     <div className={`showcase showcase--${products.length}`}>
@@ -43,13 +71,13 @@ function Showcase({ products, onOpen }) {
   );
 }
 
-export default function App() {
+function Shop({ session, setSession, onAdmin, notify }) {
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...filtersFromUrl() }));
   const debouncedQ = useDebounced(filters.q, 350);
   const queryFilters = useMemo(() => ({ ...filters, q: debouncedQ }), [filters, debouncedQ]);
   const catalog = useCatalogPage(queryFilters);
   const facets = useFacets();
-  const showcase = useShowcase();
+  const showcase = facets.showcase;
 
   const [cart, setCart] = useState(readCart);
   const [cartOpen, setCartOpen] = useState(false);
@@ -58,22 +86,11 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [detailProduct, setDetailProduct] = useState(null);
-  const [session, setSession] = useState(null);
-  const [toast, setToast] = useState('');
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [orderMonitorOpen, setOrderMonitorOpen] = useState(false);
-  const [mpConnectResult, setMpConnectResult] = useState(null);
   const [returnedOrder, setReturnedOrder] = useState(() => new URLSearchParams(window.location.search).get('pedido'));
   const [returnedOrderStatus, setReturnedOrderStatus] = useState(null);
   const searchRef = useRef(null);
   const catalogRef = useRef(null);
-  const toastTimer = useRef(0);
-
-  const notify = useCallback(message => {
-    setToast(message);
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(''), 2600);
-  }, []);
 
   const scrollCatalog = useCallback((behavior = 'smooth') => {
     catalogRef.current?.scrollIntoView({ behavior, block: 'start' });
@@ -92,44 +109,26 @@ export default function App() {
     if (top > window.innerHeight * 0.6) scrollCatalog();
   }, [debouncedQ, scrollCatalog]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const connectStatus = params.get('mp_connect');
-    if (!connectStatus) return;
-    setOrderMonitorOpen(true);
-    setMpConnectResult(connectStatus);
-    if (connectStatus === 'success') notify('La cuenta vendedora de Mercado Pago quedó conectada.');
-    else if (connectStatus !== 'cancelled') notify('No se pudo conectar la cuenta de Mercado Pago. Revisá la configuración e intentá de nuevo.');
-    params.delete('mp_connect'); params.delete('panel');
-    const nextUrl = `${window.location.pathname}${params.size ? `?${params}` : ''}${window.location.hash}`;
-    window.history.replaceState({}, '', nextUrl);
-  }, [notify]);
   useEffect(() => { saveCart(cart); }, [cart]);
   useEffect(() => {
-    if (!supabase) return undefined;
-    let alive = true;
-    supabase.auth.getSession().then(({ data }) => { if (alive) setSession(data.session); });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
-    return () => { alive = false; listener.subscription.unsubscribe(); };
-  }, []);
-  useEffect(() => {
     if (!returnedOrder || !session?.access_token) return undefined;
-    let attempts = 0;
+    // Few, spaced checks: the webhook usually confirms within seconds, so there is no need to poll every 4 s.
+    const delays = [0, 3000, 5000, 8000, 12000, 20000, 30000];
     let alive = true;
-    const check = async () => {
-      attempts += 1;
+    let timer = 0;
+    const check = async attempt => {
       try {
         const response = await fetch(`/api/orders/status?orderNumber=${encodeURIComponent(returnedOrder)}`, { headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store' });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'No pudimos consultar el pedido.');
-        if (alive) setReturnedOrderStatus(result.order);
-        if (['paid', 'failed'].includes(result.order.payment_status)) window.clearInterval(timer);
+        if (!alive) return;
+        setReturnedOrderStatus(result.order);
+        if (['paid', 'failed'].includes(result.order.payment_status)) return;
       } catch (error) { if (alive) setReturnedOrderStatus({ error: error.message }); }
-      if (attempts >= 20) window.clearInterval(timer);
+      if (alive && attempt + 1 < delays.length) timer = window.setTimeout(() => check(attempt + 1), delays[attempt + 1]);
     };
-    check();
-    const timer = window.setInterval(check, 4000);
-    return () => { alive = false; window.clearInterval(timer); };
+    check(0);
+    return () => { alive = false; window.clearTimeout(timer); };
   }, [returnedOrder, session?.access_token]);
   useEffect(() => {
     const onShortcut = event => {
@@ -168,7 +167,7 @@ export default function App() {
   const removeItem = id => setCart(current => current.filter(line => line.id !== id));
   const startCheckout = () => { setCartOpen(false); setCheckoutOpen(true); };
   const startAuth = mode => { setAuthMode(mode || 'login'); setAuthOpen(true); setMobileMenu(false); };
-  const signOut = async () => { if (supabase) await supabase.auth.signOut(); setSession(null); notify('Cerraste sesión.'); };
+  const signOut = async () => { if (supabase) await supabase.auth.signOut(); setSession(null); };
   const toTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); setMobileMenu(false); };
   const firstName = session?.user?.user_metadata?.full_name?.split(' ')[0] || 'Mi cuenta';
 
@@ -195,9 +194,7 @@ export default function App() {
             {filters.q ? <button type="button" className="search__clear" onClick={() => updateFilters({ q: '' })} aria-label="Borrar búsqueda"><X size={15} /></button> : <kbd>Ctrl K</kbd>}
           </form>
           <div className="header-actions">
-            {session
-              ? <button className="header-action" type="button" onClick={signOut} title="Cerrar sesión" aria-label={`Cerrar sesión de ${firstName}`}><CircleUserRound size={20} /><span>{firstName}</span><LogOut size={14} className="header-action__extra" /></button>
-              : <button className="header-action" type="button" onClick={() => startAuth('login')}><CircleUserRound size={20} /><span>Ingresar</span></button>}
+            <AccountMenu session={session} firstName={firstName} onSignOut={signOut} />
             <button className="header-action header-action--cart" type="button" onClick={() => setCartOpen(true)} aria-label={`Abrir carrito, ${cartCount} artículos`}>
               <ShoppingBag size={20} /><span>Carrito</span>{cartCount > 0 && <b key={cartCount}>{cartCount}</b>}
             </button>
@@ -220,11 +217,10 @@ export default function App() {
 
         <section className="hero wrap" aria-labelledby="hero-title">
           <div className="hero__copy">
-            <p className="kicker">Tienda online de CR</p>
-            <h1 id="hero-title">Perfumería y limpieza para retirar <em>cerca de casa</em></h1>
+            <h1 id="hero-title">Perfumería y limpieza para retirar cerca de casa</h1>
             <p className="hero__lead">Armá el pedido acá, pagalo con Mercado Pago y retiralo en el punto que te quede mejor.</p>
             <div className="hero__actions">
-              <button className="button button--gold button--large" type="button" onClick={() => scrollCatalog()}>Ver productos <ArrowRight size={18} /></button>
+              <button className="button button--gold button--large" type="button" onClick={() => scrollCatalog()}>Ver productos</button>
               <button className="button button--outline button--large" type="button" onClick={() => document.getElementById('retiro')?.scrollIntoView({ behavior: 'smooth' })}>Ver puntos de retiro</button>
             </div>
             <dl className="hero__facts">
@@ -308,14 +304,15 @@ export default function App() {
           <ul className="points">
             {pickUpPoints.map(point => <li key={point}><MapPin size={18} /><span>{point}</span></li>)}
           </ul>
+          <p className="pickup__help">¿Tenés una consulta sobre un producto o un pedido? <a className="text-link" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> Escribinos por WhatsApp</a></p>
         </section>
       </main>
 
       <footer className="site-footer">
         <div className="wrap site-footer__row">
           <Brand onClick={toTop} />
-          <p>Perfumería y limpieza con retiro en {pickUpPoints.length} puntos.</p>
-          <button className="text-link site-footer__admin" type="button" onClick={() => setOrderMonitorOpen(true)}><Store size={15} /> Pedidos del local</button>
+          <a className="text-link" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> WhatsApp 11 3369-7693</a>
+          <button className="text-link site-footer__admin" type="button" onClick={onAdmin}><Store size={15} /> Pedidos del local</button>
           <span>© {new Date().getFullYear()} CR Perfumería & Limpieza</span>
         </div>
       </footer>
@@ -324,11 +321,10 @@ export default function App() {
         <aside className="floating-cart" aria-label="Resumen del carrito">
           <span className="floating-cart__count"><ShoppingBag size={17} /> {cartCount}</span>
           <strong>{money(cartTotal)}</strong>
-          <button className="button button--gold" type="button" onClick={() => setCartOpen(true)}>Ver carrito <ArrowRight size={16} /></button>
+          <button className="button button--gold" type="button" onClick={() => setCartOpen(true)}>Ver carrito</button>
         </aside>
       )}
 
-      {toast && <div className="toast" role="status"><span><Check size={16} /></span>{toast}</div>}
       {filtersOpen && (
         <Modal onClose={() => setFiltersOpen(false)} variant="drawer" labelledBy="filters-title" className="drawer drawer--filters">
           <header className="drawer__header"><h2 id="filters-title" className="sheet__title">Filtros</h2><button className="icon-button" type="button" onClick={() => setFiltersOpen(false)} aria-label="Cerrar filtros"><X size={20} /></button></header>
@@ -341,9 +337,72 @@ export default function App() {
       )}
       {cartOpen && <CartDialog items={cartItems} total={cartTotal} onClose={() => setCartOpen(false)} onQty={changeQty} onRemove={removeItem} onCheckout={startCheckout} />}
       {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
-      {authOpen && <AuthDialog mode={authMode} onMode={setAuthMode} onClose={() => setAuthOpen(false)} onSignedIn={setSession} />}
+      {authOpen && <AuthDialog mode={authMode} onClose={() => setAuthOpen(false)} onSignedIn={nextSession => setSession(nextSession)} />}
       {detailProduct && <ProductDialog product={detailProduct} inCart={qtyInCart[detailProduct.id] || 0} onClose={() => setDetailProduct(null)} onAdd={addToCart} />}
-      {orderMonitorOpen && <OrderMonitor connectionResult={mpConnectResult} onClose={() => setOrderMonitorOpen(false)} />}
     </div>
+  );
+}
+
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [checking, setChecking] = useState(Boolean(supabase));
+  const [intro, setIntro] = useState(null);
+  const [recovering, setRecovering] = useState(false);
+  const [toast, setToast] = useState('');
+  const [orderMonitorOpen, setOrderMonitorOpen] = useState(false);
+  const [mpConnectResult, setMpConnectResult] = useState(null);
+  const toastTimer = useRef(0);
+
+  const notify = useCallback(message => {
+    setToast(message);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(''), 2600);
+  }, []);
+
+  // Supabase Auth keeps the session in this browser and refreshes it, so a returning customer goes straight in.
+  useEffect(() => {
+    if (!supabase) return undefined;
+    let alive = true;
+    supabase.auth.getSession()
+      .then(({ data }) => { if (alive) setSession(data.session); })
+      .finally(() => { if (alive) setChecking(false); });
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setSession(nextSession);
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
+    });
+    return () => { alive = false; listener.subscription.unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connectStatus = params.get('mp_connect');
+    if (!connectStatus) return;
+    setOrderMonitorOpen(true);
+    setMpConnectResult(connectStatus);
+    if (connectStatus === 'success') notify('La cuenta vendedora de Mercado Pago quedó conectada.');
+    else if (connectStatus !== 'cancelled') notify('No se pudo conectar la cuenta de Mercado Pago. Revisá la configuración e intentá de nuevo.');
+    params.delete('mp_connect'); params.delete('panel');
+    const nextUrl = `${window.location.pathname}${params.size ? `?${params}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', nextUrl);
+  }, [notify]);
+
+  const signedIn = (nextSession, kind) => {
+    setSession(nextSession);
+    setIntro({ kind, name: nextSession?.user?.user_metadata?.full_name || '' });
+  };
+
+  let screen;
+  if (checking) screen = <BootSplash />;
+  else if (!session) screen = <AuthGate onSignedIn={signedIn} onAdmin={() => setOrderMonitorOpen(true)} />;
+  else screen = <Shop session={session} setSession={setSession} onAdmin={() => setOrderMonitorOpen(true)} notify={notify} />;
+
+  return (
+    <>
+      {screen}
+      {intro && session && <IntroOverlay name={intro.name} kind={intro.kind} onDone={() => setIntro(null)} />}
+      {recovering && session && <PasswordResetDialog onClose={() => setRecovering(false)} onDone={() => { setRecovering(false); notify('Guardamos tu contraseña nueva.'); }} />}
+      {orderMonitorOpen && <OrderMonitor connectionResult={mpConnectResult} onClose={() => setOrderMonitorOpen(false)} />}
+      {toast && <div className="toast" role="status"><span><Check size={16} /></span>{toast}</div>}
+    </>
   );
 }
