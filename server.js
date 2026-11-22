@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getPublicCatalog } from './lib/server-catalog.js';
+import { CATALOG_CACHE, catalogErrorMessage, getCatalogFacets, getCatalogPage, getProductsByIds } from './lib/server-catalog.js';
 import { createOrder, mercadoPagoWebhook, orderStatus, adminLogin, adminOrders } from './lib/order-api.js';
 import { startMercadoPagoConnect, mercadoPagoOAuthCallback, mercadoPagoConnectionStatus } from './lib/mercadopago-oauth.js';
 
@@ -21,16 +21,21 @@ app.get('/api/admin/orders', adminOrders);
 app.get('/api/admin/mp/connect', startMercadoPagoConnect);
 app.get('/api/admin/mp/status', mercadoPagoConnectionStatus);
 app.get('/api/mp/oauth/callback', mercadoPagoOAuthCallback);
-app.get('/api/catalog/products', async (_request, response) => {
+app.get('/api/catalog/products', async (request, response) => {
   try {
-    const products = await getPublicCatalog();
-    response.set('Cache-Control', 'no-store').json({ products });
+    const result = request.query.ids
+      ? { products: await getProductsByIds(String(request.query.ids).split(',')) }
+      : await getCatalogPage(request.query);
+    response.set('Cache-Control', CATALOG_CACHE).json(result);
   } catch (error) {
-    response.set('Cache-Control', 'no-store').status(error.status || 502).json({
-      error: error.status === 503
-        ? 'El catálogo todavía no está conectado.'
-        : 'No se pudo cargar el catálogo. Volvé a intentar en unos minutos.',
-    });
+    response.set('Cache-Control', 'no-store').status(error.status || 502).json({ error: catalogErrorMessage(error) });
+  }
+});
+app.get('/api/catalog/facets', async (_request, response) => {
+  try {
+    response.set('Cache-Control', 'public, max-age=120').json(await getCatalogFacets());
+  } catch (error) {
+    response.set('Cache-Control', 'no-store').status(error.status || 502).json({ error: catalogErrorMessage(error) });
   }
 });
 

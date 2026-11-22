@@ -1,4 +1,4 @@
-const CACHE = 'cr-store-shell-v1';
+const CACHE = 'cr-store-shell-v2';
 const SHELL = ['/', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', event => {
