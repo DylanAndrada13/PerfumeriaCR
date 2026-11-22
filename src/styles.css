@@ -709,3 +709,26 @@ p { margin: 0; }
 @media (max-width: 860px) { .places { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .product-grid { gap: 20px 12px; } .product-card__body { padding: 10px 0 0; } }
 .my-order__note { color: #ff8a7d; }
+
+/* Fixed page on phones: nothing scrolls sideways, no rubber-band to the sides */
+html { overflow-x: hidden; overscroll-behavior-x: none; }
+body { overflow-x: clip; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { touch-action: pan-x pan-y; }
+@media (max-width: 640px) {
+  /* iOS zooms into fields with text under 16px */
+  input, select, textarea, .search input, .select select, .filters__search input { font-size: 16px; }
+}
+
+/* Install notice */
+.install { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 70; width: min(400px, calc(100% - 24px)); display: grid; gap: 14px; padding: 18px; border: 1px solid rgba(217, 180, 94, .45); border-radius: var(--radius); background: var(--panel); box-shadow: 0 24px 60px rgba(0, 0, 0, .55); transform: translateX(-50%); animation: install-in .35s var(--ease) both; }
+@keyframes install-in { from { opacity: 0; transform: translate(-50%, 16px); } }
+.install__close { position: absolute; top: 8px; right: 8px; }
+.install__head { display: flex; align-items: center; gap: 12px; padding-right: 28px; }
+.install__head img { width: 48px; height: 48px; flex: none; border-radius: 12px; }
+.install__head h2 { color: var(--paper); font: 600 17px/1.3 var(--sans); }
+.install__head p { margin-top: 2px; color: var(--muted); font-size: 14px; }
+.install__steps { display: grid; gap: 8px; margin: 0; padding-left: 20px; color: var(--paper); font-size: 15px; }
+.install__steps svg { vertical-align: -3px; color: var(--gold); }
+.install__later { justify-self: center; }
+@media (prefers-reduced-motion: reduce) { .install { animation: none; } }

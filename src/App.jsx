@@ -13,6 +13,7 @@ import { AuthDialog, AuthGate, BootSplash, IntroOverlay, Logo, PasswordResetDial
 import OrderMonitor from './components/OrderMonitor.jsx';
 import CleaningScene from './components/CleaningScene.jsx';
 import Modal from './components/Modal.jsx';
+import InstallPrompt from './components/InstallPrompt.jsx';
 
 const WHATSAPP_URL = 'https://wa.me/5491133697693';
 
@@ -412,6 +413,7 @@ export default function App() {
       {intro && session && <IntroOverlay name={intro.name} kind={intro.kind} onDone={() => setIntro(null)} />}
       {recovering && session && <PasswordResetDialog onClose={() => setRecovering(false)} onDone={() => { setRecovering(false); notify('Guardamos tu contraseña nueva.'); }} />}
       {orderMonitorOpen && <OrderMonitor connectionResult={mpConnectResult} onClose={() => setOrderMonitorOpen(false)} />}
+      {!checking && <InstallPrompt />}
       {toast && <div className="toast" role="status"><span><Check size={16} /></span>{toast}</div>}
     </>
   );
