@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, ArrowLeft, Banknote, CheckCircle2, CircleUserRound, Contact, Clock3, Loader2, LockKeyhole, MapPin, Minus, Package, Plus, ShoppingBag, Trash2, Wallet, X, XCircle } from 'lucide-react';
 import { formatPickupDate, localPickups, money, pickUpPoints, pickupDateOptions } from '../lib/format.js';
 import { supabase } from '../lib/supabase.js';
+import { rememberPendingOrder } from '../lib/orderReturn.js';
 import Modal from './Modal.jsx';
 import { ProductImage, availability } from './Products.jsx';
 
@@ -135,6 +136,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
       try { checkoutHost = new URL(data.checkoutUrl).hostname; } catch { /* invalid URL */ }
       const trustedCheckout = checkoutHost === 'mercadopago.com' || checkoutHost.endsWith('.mercadopago.com') || checkoutHost === 'mercadopago.com.ar' || checkoutHost.endsWith('.mercadopago.com.ar');
       if (!trustedCheckout) throw new Error('La dirección de pago no pudo validarse. No salimos del sitio.');
+      rememberPendingOrder(data.orderNumber, data.returnToken);
       onOrdered();
       window.location.assign(data.checkoutUrl);
     } catch (err) { setError(err.message || 'No se pudo enviar el pedido.'); }
@@ -276,7 +278,9 @@ export function OrderResultDialog({ result, onClose, onShowOrders }) {
       )}
       <div className="result__actions">
         <button className="button button--gold button--wide" type="button" onClick={onClose}>Seguir comprando</button>
-        <button className="button button--ghost button--wide" type="button" onClick={onShowOrders}>Ver mis pedidos</button>
+        {onShowOrders
+          ? <button className="button button--ghost button--wide" type="button" onClick={onShowOrders}>Ver mis pedidos</button>
+          : <p className="note">Iniciá sesión para ver todos tus pedidos.</p>}
       </div>
     </Modal>
   );

@@ -14,6 +14,7 @@ import OrderMonitor from './components/OrderMonitor.jsx';
 import CleaningScene from './components/CleaningScene.jsx';
 import Modal from './components/Modal.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
+import { useOrderReturn } from './lib/orderReturn.js';
 
 const WHATSAPP_URL = 'https://wa.me/5491133697693';
 
@@ -60,7 +61,7 @@ function AccountMenu({ session, firstName, onSignOut, onOrders }) {
 }
 
 
-function Shop({ session, setSession, onAdmin, notify }) {
+function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...filtersFromUrl() }));
   const debouncedQ = useDebounced(filters.q, 350);
   const queryFilters = useMemo(() => ({ ...filters, q: debouncedQ }), [filters, debouncedQ]);
@@ -75,13 +76,9 @@ function Shop({ session, setSession, onAdmin, notify }) {
   const [authMode, setAuthMode] = useState('login');
   const [detailProduct, setDetailProduct] = useState(null);
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [returnedOrder, setReturnedOrder] = useState(() => new URLSearchParams(window.location.search).get('pedido'));
-  const [returnedOrderStatus, setReturnedOrderStatus] = useState(null);
-  const [returnPollDone, setReturnPollDone] = useState(false);
   const [cashResult, setCashResult] = useState(null);
   const [ordersOpen, setOrdersOpen] = useState(false);
-  // Mercado Pago appends its own status to the return URL. It is only a hint for the message; the webhook decides.
-  const [mpHint] = useState(() => { const params = new URLSearchParams(window.location.search); return params.get('collection_status') || params.get('status') || ''; });
+  useEffect(() => { if (ordersSignal) setOrdersOpen(true); }, [ordersSignal]);
   const searchRef = useRef(null);
   const catalogRef = useRef(null);
 
@@ -103,29 +100,6 @@ function Shop({ session, setSession, onAdmin, notify }) {
   }, [debouncedQ, scrollCatalog]);
 
   useEffect(() => { saveCart(cart); }, [cart]);
-  useEffect(() => {
-    if (!returnedOrder || !session?.access_token) return undefined;
-    // Few, spaced checks: the webhook usually confirms within seconds, so there is no need to poll every 4 s.
-    const delays = [0, 3000, 5000, 8000, 12000, 20000, 30000];
-    let alive = true;
-    let timer = 0;
-    const check = async attempt => {
-      try {
-        const response = await fetch(`/api/orders/status?orderNumber=${encodeURIComponent(returnedOrder)}`, { headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store' });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'No pudimos consultar el pedido.');
-        if (!alive) return;
-        setReturnedOrderStatus(result.order);
-        if (['paid', 'failed'].includes(result.order.payment_status)) return;
-        // Without an approval from Mercado Pago there is nothing to wait for.
-        if (mpHint !== 'approved' && mpHint !== 'in_process' && mpHint !== 'pending') { setReturnPollDone(true); return; }
-      } catch (error) { if (alive) setReturnedOrderStatus({ error: error.message }); }
-      if (alive && attempt + 1 < delays.length) timer = window.setTimeout(() => check(attempt + 1), delays[attempt + 1]);
-      else if (alive) setReturnPollDone(true);
-    };
-    check(0);
-    return () => { alive = false; window.clearTimeout(timer); };
-  }, [returnedOrder, session?.access_token, mpHint]);
   useEffect(() => {
     const onShortcut = event => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
@@ -167,22 +141,6 @@ function Shop({ session, setSession, onAdmin, notify }) {
   const toTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); setMobileMenu(false); };
   const firstName = session?.user?.user_metadata?.full_name?.split(' ')[0] || 'Mi cuenta';
 
-  const returnResult = (() => {
-    const order = returnedOrderStatus && !returnedOrderStatus.error
-      ? { ...returnedOrderStatus, items: returnedOrderStatus.web_order_items || [] }
-      : { order_number: returnedOrder };
-    if (returnedOrderStatus?.error) return { state: 'error', error: returnedOrderStatus.error, order };
-    if (returnedOrderStatus?.payment_status === 'paid') return { state: 'paid', order };
-    if (returnedOrderStatus?.payment_status === 'failed') return { state: 'failed', order };
-    if (!returnPollDone) return { state: 'checking', order };
-    return { state: mpHint === 'approved' || mpHint === 'in_process' || mpHint === 'pending' ? 'pending' : 'failed', order };
-  })();
-  const closeReturn = () => {
-    setReturnedOrder(null);
-    const url = new URL(window.location.href);
-    ['pedido', 'collection_id', 'collection_status', 'payment_id', 'status', 'external_reference', 'payment_type', 'merchant_order_id', 'preference_id', 'site_id', 'processing_mode', 'merchant_account_id'].forEach(key => url.searchParams.delete(key));
-    window.history.replaceState({}, '', url);
-  };
 
   const from = catalog.total ? (filters.page - 1) * PAGE_SIZE + 1 : 0;
   const to = Math.min(catalog.total, filters.page * PAGE_SIZE);
@@ -345,7 +303,6 @@ function Shop({ session, setSession, onAdmin, notify }) {
       )}
       {cartOpen && <CartDialog items={cartItems} total={cartTotal} onClose={() => setCartOpen(false)} onQty={changeQty} onRemove={removeItem} onCheckout={startCheckout} />}
       {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onCashOrdered={(data, items) => { setCart([]); setCheckoutOpen(false); setCashResult({ state: 'cash', order: { order_number: data.orderNumber, pickup_point: data.pickupPoint, pickup_dates: data.pickupDates, total_amount: data.total, payment_method: 'efectivo', items: items.map(item => ({ product_name: item.name, quantity: item.qty })) } }); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
-      {returnedOrder && <OrderResultDialog result={returnResult} onClose={closeReturn} onShowOrders={() => { closeReturn(); setOrdersOpen(true); }} />}
       {cashResult && <OrderResultDialog result={cashResult} onClose={() => setCashResult(null)} onShowOrders={() => { setCashResult(null); setOrdersOpen(true); }} />}
       {ordersOpen && <MyOrdersDialog session={session} onClose={() => setOrdersOpen(false)} />}
       {authOpen && <AuthDialog mode={authMode} onClose={() => setAuthOpen(false)} onSignedIn={nextSession => setSession(nextSession)} />}
@@ -362,6 +319,7 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [orderMonitorOpen, setOrderMonitorOpen] = useState(false);
   const [mpConnectResult, setMpConnectResult] = useState(null);
+  const [ordersSignal, setOrdersSignal] = useState(0);
   const toastTimer = useRef(0);
 
   const notify = useCallback(message => {
@@ -402,10 +360,12 @@ export default function App() {
     setIntro({ kind, name: nextSession?.user?.user_metadata?.full_name || '' });
   };
 
+  const orderReturn = useOrderReturn(session, checking);
+
   let screen;
   if (checking) screen = <BootSplash />;
   else if (!session) screen = <AuthGate onSignedIn={signedIn} onAdmin={() => setOrderMonitorOpen(true)} />;
-  else screen = <Shop session={session} setSession={setSession} onAdmin={() => setOrderMonitorOpen(true)} notify={notify} />;
+  else screen = <Shop session={session} setSession={setSession} onAdmin={() => setOrderMonitorOpen(true)} notify={notify} ordersSignal={ordersSignal} />;
 
   return (
     <>
@@ -413,7 +373,8 @@ export default function App() {
       {intro && session && <IntroOverlay name={intro.name} kind={intro.kind} onDone={() => setIntro(null)} />}
       {recovering && session && <PasswordResetDialog onClose={() => setRecovering(false)} onDone={() => { setRecovering(false); notify('Guardamos tu contraseña nueva.'); }} />}
       {orderMonitorOpen && <OrderMonitor connectionResult={mpConnectResult} onClose={() => setOrderMonitorOpen(false)} />}
-      {!checking && <InstallPrompt />}
+      {!checking && orderReturn.result && <OrderResultDialog result={orderReturn.result} onClose={orderReturn.close} onShowOrders={session ? () => { orderReturn.close(); setOrdersSignal(n => n + 1); } : null} />}
+      {!checking && !orderReturn.result && <InstallPrompt />}
       {toast && <div className="toast" role="status"><span><Check size={16} /></span>{toast}</div>}
     </>
   );
