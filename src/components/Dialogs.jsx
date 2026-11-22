@@ -240,6 +240,8 @@ const STEP_TEXT = {
 };
 export function orderStatusText(order) {
   if (order.order_status === 'awaiting_payment' && order.payment_status === 'failed') return 'Pago rechazado';
+  // A Mercado Pago checkout left open for hours was most likely abandoned; nothing was charged.
+  if (order.order_status === 'awaiting_payment' && Date.now() - new Date(order.created_at).getTime() > 2 * 3600 * 1000) return 'Pago sin completar';
   return STEP_TEXT[order.order_status] || 'En proceso';
 }
 
@@ -247,8 +249,8 @@ export function orderStatusText(order) {
 export function OrderResultDialog({ result, onClose, onShowOrders }) {
   const { state, order } = result;
   const content = {
-    cash: { icon: <CheckCircle2 size={44} />, tone: 'ok', title: '¡Tu pedido fue enviado!', text: 'El local lo revisa y te lo prepara. Lo pagás en efectivo cuando lo retirás.' },
-    paid: { icon: <CheckCircle2 size={44} />, tone: 'ok', title: '¡Tu compra fue hecha!', text: 'Mercado Pago confirmó el pago. Te avisamos el estado en Mis pedidos; retiralo con el número de pedido.' },
+    cash: { icon: <CheckCircle2 size={44} />, tone: 'ok', title: '¡Tu pedido fue enviado!', text: 'El local lo revisa, te escribe por WhatsApp para confirmar el día y la hora, y lo pagás en efectivo cuando lo retirás.' },
+    paid: { icon: <CheckCircle2 size={44} />, tone: 'ok', title: '¡Tu compra fue hecha!', text: 'Mercado Pago confirmó el pago. Te escribimos por WhatsApp para coordinar el retiro, y el estado lo ves en Mis pedidos.' },
     checking: { icon: <Loader2 size={40} className="spin" />, tone: 'wait', title: 'Estamos confirmando tu pago', text: 'Mercado Pago nos avisa en unos segundos. No cierres esta pantalla.' },
     pending: { icon: <Clock3 size={42} />, tone: 'wait', title: 'Tu pago está pendiente', text: 'Mercado Pago todavía no lo confirmó. Cuando se acredite, el pedido pasa a preparación; podés seguirlo en Mis pedidos.' },
     failed: { icon: <XCircle size={42} />, tone: 'error', title: 'El pago no se completó', text: 'Mercado Pago no aprobó el pago y no se cobró nada. Podés volver a intentarlo desde el carrito.' },
@@ -305,7 +307,9 @@ export function MyOrdersDialog({ session, onClose }) {
         {state.orders.map(order => (
           <article className="my-order" key={order.order_number}>
             <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{orderStatusText(order)}</span></header>
-            <p>{new Date(order.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · Retiro en {order.pickup_point}</p>
+            <p>{new Date(order.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · {order.pickup_type === 'encuentro' ? 'Encuentro en' : 'Retiro en'} {order.pickup_point}</p>
+            {order.pickup_dates?.length > 0 && order.order_status !== 'delivered' && order.order_status !== 'cancelled' && <p>Fechas que propusiste: {order.pickup_dates.map(date => formatPickupDate(date)).join(' · ')}</p>}
+            {order.order_status === 'cancelled' && order.status_note && <p className="my-order__note">Motivo: {order.status_note}</p>}
             <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>
             <footer><span>{order.payment_method === 'efectivo' ? 'Efectivo al retirar' : 'Mercado Pago'}{order.payment_status === 'paid' ? ' · pagado' : ''}</span><strong>{money(order.total_amount)}</strong></footer>
           </article>

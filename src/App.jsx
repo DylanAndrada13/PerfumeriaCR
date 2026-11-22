@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check, ChevronDown, CircleUserRound, LogOut, MapPin, Menu, MessageCircle, Package, PackageSearch,
-  RefreshCw, Search, ShoppingBag, SlidersHorizontal, Store, Wallet, X,
+  RefreshCw, Search, ShoppingBag, SlidersHorizontal, Store, X,
 } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
 import { localPickups, money, pickUpPoints, readCart, saveCart, sameText } from './lib/format.js';
@@ -198,7 +198,7 @@ function Shop({ session, setSession, onAdmin, notify }) {
           <nav className={`main-nav ${mobileMenu ? 'main-nav--open' : ''}`} id="main-nav" aria-label="Navegación principal">
             <button type="button" className="main-nav__link" onClick={() => scrollCatalog()}>Productos</button>
             <button type="button" className="main-nav__link" onClick={() => { updateFilters({ sort: 'recent' }); scrollCatalog(); }}>Novedades</button>
-            <button type="button" className="main-nav__link" onClick={() => { document.getElementById('retiro')?.scrollIntoView({ behavior: 'smooth' }); setMobileMenu(false); }}>Puntos de retiro</button>
+            <button type="button" className="main-nav__link" onClick={() => { document.getElementById('retiro')?.scrollIntoView({ behavior: 'smooth' }); setMobileMenu(false); }}>Dónde retirar</button>
           </nav>
           <form className="search" role="search" onSubmit={event => { event.preventDefault(); scrollCatalog(); searchRef.current?.blur(); }}>
             <Search size={17} aria-hidden="true" />
@@ -219,15 +219,14 @@ function Shop({ session, setSession, onAdmin, notify }) {
         <section className="hero wrap" aria-labelledby="hero-title">
           <div className="hero__copy">
             <h1 id="hero-title">Perfumería y limpieza para retirar cerca de casa</h1>
-            <p className="hero__lead">Armá el pedido acá, pagalo con Mercado Pago o en efectivo al retirarlo en el punto que te quede mejor.</p>
+            <p className="hero__lead">Armá el pedido, pagalo con Mercado Pago o en efectivo y retiralo en nuestros locales o en un punto de encuentro.</p>
             <div className="hero__actions">
               <button className="button button--gold button--large" type="button" onClick={() => scrollCatalog()}>Ver productos</button>
-              <button className="button button--outline button--large" type="button" onClick={() => document.getElementById('retiro')?.scrollIntoView({ behavior: 'smooth' })}>Ver puntos de retiro</button>
+              <button className="button button--outline button--large" type="button" onClick={() => document.getElementById('retiro')?.scrollIntoView({ behavior: 'smooth' })}>Dónde retirar</button>
             </div>
             <dl className="hero__facts">
               <div><dt>{productTotal || '—'}</dt><dd>productos en el catálogo</dd></div>
               <div><dt>{pickUpPoints.length + localPickups.length}</dt><dd>lugares de retiro</dd></div>
-              <div><dt><Wallet size={22} aria-label="Mercado Pago" /></dt><dd>Mercado Pago o efectivo</dd></div>
             </dl>
           </div>
           <CleaningScene />
@@ -295,17 +294,23 @@ function Shop({ session, setSession, onAdmin, notify }) {
         <section className="pickup wrap" id="retiro" aria-labelledby="pickup-title">
           <div className="pickup__intro">
             <h2 id="pickup-title">Cómo comprar y dónde retirar</h2>
-            <p>No hay envío a domicilio. Lo retirás en uno de nuestros locales o en un punto de encuentro, en una de las 3 fechas que elijas, y te confirmamos por WhatsApp.</p>
+            <p>No hay envío a domicilio. Lo retirás en uno de nuestros locales o en un punto de encuentro, y te confirmamos el día y la hora por WhatsApp.</p>
           </div>
           <ol className="how">
             <li><span>1</span><div><strong>Elegí los productos</strong><p>Buscá por nombre, marca o categoría y sumalos al carrito.</p></div></li>
             <li><span>2</span><div><strong>Elegí cómo pagar</strong><p>Con saldo de Mercado Pago ahora, o en efectivo cuando lo retirás.</p></div></li>
             <li><span>3</span><div><strong>Retirá el pedido</strong><p>En el local o en el punto de encuentro, con el número de pedido.</p></div></li>
           </ol>
-          <ul className="points">
-            {localPickups.map(point => <li key={point}><Store size={18} /><span>{point}</span></li>)}
-            {pickUpPoints.map(point => <li key={point}><MapPin size={18} /><span>{point}</span></li>)}
-          </ul>
+          <div className="places">
+            <div className="places__group">
+              <h3><Store size={17} /> Retiro en el local</h3>
+              <ul>{localPickups.map(point => <li key={point}>{point}</li>)}</ul>
+            </div>
+            <div className="places__group">
+              <h3><MapPin size={17} /> Puntos de encuentro</h3>
+              <ul>{pickUpPoints.map(point => <li key={point}>{point}</li>)}</ul>
+            </div>
+          </div>
           <p className="pickup__help">¿Tenés una consulta sobre un producto o un pedido? <a className="text-link" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> Escribinos por WhatsApp</a></p>
         </section>
       </main>
