@@ -49,12 +49,14 @@ export default async function handler(request, response) {
 }
 
 function getRoute(request) {
+  const routed = request.query?.route;
+  if (routed) return Array.isArray(routed) ? routed.join('/') : String(routed);
+
   const urlPath = String(request.url || '').split('?')[0];
   const fromUrl = urlPath.replace(/^\/api\/?/, '').replace(/\/$/, '');
   if (fromUrl) return decodeURIComponent(fromUrl);
 
-  const route = request.query?.route;
-  return Array.isArray(route) ? route.join('/') : String(route || '');
+  return '';
 }
 
 async function handleCatalogProducts(request, response) {
