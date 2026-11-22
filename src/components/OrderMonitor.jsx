@@ -139,7 +139,8 @@ export default function OrderMonitor({ onClose, connectionResult }) {
             {visible.length === 0 ? <p className="note">No hay pedidos en esta vista.</p> : visible.map(order => (
               <article className={`admin-order ${order.order_status === 'pending_review' ? 'admin-order--new' : ''}`} key={order.id}>
                 <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{ORDER_LABEL[order.order_status] || order.order_status}</span></header>
-                <p>{order.customer_name} · {order.customer_email}</p>
+                <p>{order.customer_name} · {order.customer_email}{order.customer_phone ? ` · ${order.customer_phone}` : ""}</p>
+                {order.customer_note && <p className="note">Nota: {order.customer_note}</p>}
                 <p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {order.pickup_point}</p>
                 <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>
                 {order.stock_shortage?.length > 0 && <p className="alert alert--error"><AlertCircle size={16} />Faltó stock al descontar: revisá {order.stock_shortage.length === 1 ? 'un producto' : `${order.stock_shortage.length} productos`} antes de prepararlo.</p>}

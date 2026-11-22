@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, ArrowLeft, Banknote, CheckCircle2, CircleUserRound, Clock3, Loader2, LockKeyhole, MapPin, Minus, Package, Plus, ShoppingBag, Trash2, Wallet, X, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Banknote, CheckCircle2, CircleUserRound, Contact, Clock3, Loader2, LockKeyhole, MapPin, Minus, Package, Plus, ShoppingBag, Trash2, Wallet, X, XCircle } from 'lucide-react';
 import { money, pickUpPoints } from '../lib/format.js';
+import { supabase } from '../lib/supabase.js';
 import Modal from './Modal.jsx';
 import { ProductImage, availability } from './Products.jsx';
 
@@ -99,19 +100,29 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
+  const meta = session?.user?.user_metadata || {};
+  const [customerName, setCustomerName] = useState(() => String(meta.full_name || meta.name || ''));
+  const [customerPhone, setCustomerPhone] = useState(() => String(meta.phone || ''));
+  const [customerNote, setCustomerNote] = useState('');
+  const phoneDigits = customerPhone.replace(/\D/g, '');
+  const contactReady = customerName.trim().length >= 2 && phoneDigits.length >= 8 && phoneDigits.length <= 15;
   const cash = method === 'efectivo';
   const submit = async () => {
     setBusy(true); setError('');
     try {
       const response = await fetch('/api/orders/create', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ checkoutKey, paymentMethod: method, pickupPoint: pickup, items: items.map(item => ({ id: item.id, quantity: item.qty })) }),
+        body: JSON.stringify({ checkoutKey, paymentMethod: method, pickupPoint: pickup, customerName: customerName.trim(), customerPhone: customerPhone.trim(), customerNote: customerNote.trim(), items: items.map(item => ({ id: item.id, quantity: item.qty })) }),
       });
       const data = await response.json();
       if (!response.ok) {
         // A rejected attempt saved nothing, so the next try gets a fresh key.
         if (response.status !== 409 || !/en proceso/.test(data.error || '')) setCheckoutKey(crypto.randomUUID());
         throw new Error(data.error || 'No se pudo enviar el pedido.');
+      }
+      // Remember name and phone on the account so the next checkout comes filled in.
+      if (supabase && (customerPhone.trim() !== String(meta.phone || '') || customerName.trim() !== String(meta.full_name || ''))) {
+        await supabase.auth.updateUser({ data: { phone: customerPhone.trim(), full_name: customerName.trim() } }).catch(() => {});
       }
       if (data.paymentMethod === 'efectivo') { onCashOrdered(data, items); return; }
       let checkoutHost = '';
@@ -126,6 +137,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
   const count = items.reduce((sum, item) => sum + item.qty, 0);
   const label = busy
     ? (cash ? 'Enviando pedido…' : 'Conectando con Mercado Pago…')
+    : !contactReady ? 'Completá tu nombre y teléfono'
     : !pickup ? 'Elegí un punto de retiro'
       : !method ? 'Elegí cómo vas a pagar'
         : cash ? 'Enviar pedido' : 'Pagar con Mercado Pago';
@@ -141,6 +153,15 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
         <li><span>3</span>{cash ? 'Confirmación' : 'Pago'}</li>
       </ol>
       <h2 id="checkout-title" className="sheet__title">Retiro y pago</h2>
+      <section className="checkout__section">
+        <h3><Contact size={17} /> Tus datos</h3>
+        <div className="checkout__contact">
+          <label className="field">Nombre y apellido<input autoComplete="name" value={customerName} onChange={e => setCustomerName(e.target.value)} required minLength={2} maxLength={160} /></label>
+          <label className="field">Teléfono o WhatsApp<input type="tel" inputMode="tel" autoComplete="tel" placeholder="11 2345 6789" value={customerPhone} onChange={e => setCustomerPhone(e.target.value.replace(/[^\d\s()+-]/g, ''))} required maxLength={40} /></label>
+          <label className="field checkout__note">Nota para el local (opcional)<textarea rows={2} maxLength={300} value={customerNote} onChange={e => setCustomerNote(e.target.value)} placeholder="Por ejemplo, a qué hora pasás a retirar" /></label>
+        </div>
+        <p className="note">El local te escribe a este número si hay algún cambio con tu pedido.</p>
+      </section>
       <section className="checkout__section">
         <h3><MapPin size={17} /> Punto de retiro</h3>
         <div className="choice-grid" role="radiogroup" aria-label="Punto de retiro">
@@ -167,7 +188,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
       <div className="total-row total-row--boxed"><span>{count} {count === 1 ? 'artículo' : 'artículos'}</span><strong>{money(total)}</strong></div>
       {!session?.user
         ? <button className="button button--gold button--wide" type="button" onClick={onLogin}><CircleUserRound size={17} /> Ingresar para pagar</button>
-        : <button className="button button--gold button--wide" type="button" disabled={!pickup || !method || busy || items.length === 0} onClick={submit}>{label}</button>}
+        : <button className="button button--gold button--wide" type="button" disabled={!contactReady || !pickup || !method || busy || items.length === 0} onClick={submit}>{label}</button>}
       {error && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{error}</p>}
       <p className="sheet__secure"><LockKeyhole size={14} /> {cash ? 'No se cobra nada ahora: pagás al retirar.' : 'El pedido queda pagado solo cuando Mercado Pago lo confirma.'}</p>
     </Modal>
