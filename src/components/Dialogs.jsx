@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, ArrowLeft, Banknote, CheckCircle2, CircleUserRound, Contact, Clock3, Loader2, LockKeyhole, MapPin, Minus, Package, Plus, ShoppingBag, Trash2, Wallet, X, XCircle } from 'lucide-react';
-import { formatPickupDate, localPickups, money, pickUpPoints, pickupDateOptions } from '../lib/format.js';
+import { formatPickupDate, localPickups, money, pickUpPoints, pickupDateOptions, pickupLabel } from '../lib/format.js';
 import { supabase } from '../lib/supabase.js';
 import { rememberPendingOrder } from '../lib/orderReturn.js';
 import Modal from './Modal.jsx';
@@ -179,21 +179,21 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
             <span className="choice__dot" aria-hidden="true" /><span><strong>Retiro en el local</strong><small>Itatí o La Haya, en horario de atención</small></span>
           </button>
           <button type="button" role="radio" aria-checked={pickupType === 'encuentro'} className={`choice choice--tall ${pickupType === 'encuentro' ? 'is-selected' : ''}`} onClick={() => chooseType('encuentro')}>
-            <span className="choice__dot" aria-hidden="true" /><span><strong>Punto de encuentro</strong><small>Los jueves: elegís el lugar y 3 jueves posibles</small></span>
+            <span className="choice__dot" aria-hidden="true" /><span><strong>Punto de encuentro</strong><small>Elegís el lugar y 3 fechas de entrega posibles</small></span>
           </button>
         </div>
         {pickupType && (
           <div className="choice-grid" role="radiogroup" aria-label={pickupType === 'local' ? 'Local' : 'Punto de encuentro'}>
             {(pickupType === 'local' ? localPickups : pickUpPoints).map(point => (
               <button type="button" role="radio" aria-checked={pickup === point} className={`choice ${pickup === point ? 'is-selected' : ''}`} key={point} onClick={() => setPickup(point)}>
-                <span className="choice__dot" aria-hidden="true" />{point}
+                <span className="choice__dot" aria-hidden="true" />{pickupLabel(point)}
               </button>
             ))}
           </div>
         )}
         {pickupType === 'encuentro' && pickup && (
           <div className="pickup-dates">
-            <p className="pickup-dates__title">Las entregas son los jueves. Elegí 3 en los que podés pasar <span>{pickupDates.length} de 3</span></p>
+            <p className="pickup-dates__title">Las entregas son los jueves (en las fiestas, el miércoles anterior). Elegí 3 fechas <span>{pickupDates.length} de 3</span></p>
             <div className="pickup-dates__grid" role="group" aria-label="Fechas posibles de retiro">
               {dateOptions.map(date => {
                 const selected = pickupDates.includes(date);
@@ -267,7 +267,7 @@ export function OrderResultDialog({ result, onClose, onShowOrders }) {
       {order?.order_number && (
         <dl className="result__facts">
           <div><dt>Pedido</dt><dd>{order.order_number}</dd></div>
-          {order.pickup_point && <div><dt>Retiro</dt><dd>{order.pickup_point}</dd></div>}
+          {order.pickup_point && <div><dt>Retiro</dt><dd>{pickupLabel(order.pickup_point)}</dd></div>}
           {order.pickup_dates?.length > 0 && <div><dt>Fechas propuestas</dt><dd>{order.pickup_dates.map(date => formatPickupDate(date)).join(' · ')}</dd></div>}
           {order.total_amount != null && <div><dt>Total</dt><dd>{money(order.total_amount)}</dd></div>}
           <div><dt>Pago</dt><dd>{order.payment_method === 'efectivo' ? 'Efectivo al retirar' : 'Mercado Pago'}</dd></div>
@@ -311,7 +311,7 @@ export function MyOrdersDialog({ session, onClose }) {
         {state.orders.map(order => (
           <article className="my-order" key={order.order_number}>
             <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{orderStatusText(order)}</span></header>
-            <p>{new Date(order.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · {order.pickup_type === 'encuentro' ? 'Encuentro en' : 'Retiro en'} {order.pickup_point}</p>
+            <p>{new Date(order.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · {order.pickup_type === 'encuentro' ? 'Encuentro en' : 'Retiro en'} {pickupLabel(order.pickup_point)}</p>
             {order.pickup_dates?.length > 0 && order.order_status !== 'delivered' && order.order_status !== 'cancelled' && <p>Fechas que propusiste: {order.pickup_dates.map(date => formatPickupDate(date)).join(' · ')}</p>}
             {order.order_status === 'cancelled' && order.status_note && <p className="my-order__note">Motivo: {order.status_note}</p>}
             <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>

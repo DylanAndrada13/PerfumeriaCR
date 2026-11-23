@@ -1,3 +1,4 @@
+import { pickupLabel } from '../lib/format.js';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Bell, LockKeyhole, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { money } from '../lib/format.js';
@@ -141,7 +142,7 @@ export default function OrderMonitor({ onClose, connectionResult }) {
                 <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{ORDER_LABEL[order.order_status] || order.order_status}</span></header>
                 <p>{order.customer_name} · {order.customer_email}{order.customer_phone ? ` · ${order.customer_phone}` : ""}</p>
                 {order.customer_note && <p className="note">Nota: {order.customer_note}</p>}
-                <p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {order.pickup_point}{order.pickup_dates?.length ? ` · Fechas: ${order.pickup_dates.join(', ')}` : ''}</p>
+                <p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {pickupLabel(order.pickup_point)}{order.pickup_dates?.length ? ` · Fechas: ${order.pickup_dates.join(', ')}` : ''}</p>
                 <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>
                 {order.stock_shortage?.length > 0 && <p className="alert alert--error"><AlertCircle size={16} />Faltó stock al descontar: revisá {order.stock_shortage.length === 1 ? 'un producto' : `${order.stock_shortage.length} productos`} antes de prepararlo.</p>}
                 <footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : 'Efectivo al retirar'} · {statusLabel(order.payment_status)}</span><strong>{money(order.total_amount)}</strong></footer>

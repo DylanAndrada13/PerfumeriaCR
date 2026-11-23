@@ -4,7 +4,7 @@ import {
   RefreshCw, Search, ShoppingBag, SlidersHorizontal, Store, X,
 } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
-import { localPickups, money, pickUpPoints, readCart, saveCart, sameText } from './lib/format.js';
+import { localPickups, money, pickUpPoints, pickupLabel, readCart, saveCart, sameText } from './lib/format.js';
 import { DEFAULT_FILTERS, PAGE_SIZE, filtersFromUrl, useCatalogPage, useDebounced, useFacets, useFreshProducts, writeFiltersToUrl } from './lib/catalog.js';
 import { Pagination, ProductCard, SkeletonCard } from './components/Products.jsx';
 import { ActiveFilters, FilterPanel } from './components/Filters.jsx';
@@ -267,7 +267,7 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
             </div>
             <div className="places__group">
               <h3><MapPin size={17} /> Puntos de encuentro</h3>
-              <ul>{pickUpPoints.map(point => <li key={point}>{point}</li>)}</ul>
+              <ul>{pickUpPoints.map(point => <li key={point}>{pickupLabel(point)}</li>)}</ul>
             </div>
           </div>
           <p className="pickup__help">¿Tenés una consulta sobre un producto o un pedido? <a className="text-link" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> Escribinos por WhatsApp</a></p>
