@@ -2,10 +2,17 @@
 export const pickUpPoints = ['Coto Lanús', 'Ciclón Caraza', 'UPA Recondo', 'Maxi Carrefour', 'Santa Marta'];
 export const localPickups = ['Local Itatí', 'Local La Haya'];
 export const isLocalPickup = point => localPickups.includes(point);
-// Dates as YYYY-MM-DD in Argentina (UTC-3 all year) from tomorrow on.
-export function pickupDateOptions(days = 21) {
+// Meeting-point deliveries happen on Thursdays only. Dates as YYYY-MM-DD in Argentina (UTC-3 all year),
+// from tomorrow on: the next `count` Thursdays.
+export const PICKUP_WEEKDAY = 4;
+export function pickupDateOptions(count = 8) {
   const today = new Date(Date.now() - 3 * 3600 * 1000);
-  return Array.from({ length: days }, (_, index) => new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + index + 1)).toISOString().slice(0, 10));
+  const dates = [];
+  for (let offset = 1; dates.length < count && offset < 120; offset += 1) {
+    const day = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + offset));
+    if (day.getUTCDay() === PICKUP_WEEKDAY) dates.push(day.toISOString().slice(0, 10));
+  }
+  return dates;
 }
 export function formatPickupDate(isoDate, options = { weekday: 'short', day: 'numeric', month: 'short' }) {
   return new Intl.DateTimeFormat('es-AR', { ...options, timeZone: 'UTC' }).format(new Date(`${isoDate}T12:00:00Z`));

@@ -99,7 +99,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
   const [pickupType, setPickupType] = useState('');
   const [pickup, setPickup] = useState('');
   const [pickupDates, setPickupDates] = useState([]);
-  const [dateOptions] = useState(() => pickupDateOptions(21));
+  const [dateOptions] = useState(() => pickupDateOptions(8));
   const [method, setMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -179,7 +179,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
             <span className="choice__dot" aria-hidden="true" /><span><strong>Retiro en el local</strong><small>Itatí o La Haya, en horario de atención</small></span>
           </button>
           <button type="button" role="radio" aria-checked={pickupType === 'encuentro'} className={`choice choice--tall ${pickupType === 'encuentro' ? 'is-selected' : ''}`} onClick={() => chooseType('encuentro')}>
-            <span className="choice__dot" aria-hidden="true" /><span><strong>Punto de encuentro</strong><small>Elegís el lugar y 3 fechas posibles</small></span>
+            <span className="choice__dot" aria-hidden="true" /><span><strong>Punto de encuentro</strong><small>Los jueves: elegís el lugar y 3 jueves posibles</small></span>
           </button>
         </div>
         {pickupType && (
@@ -193,7 +193,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
         )}
         {pickupType === 'encuentro' && pickup && (
           <div className="pickup-dates">
-            <p className="pickup-dates__title">Elegí 3 fechas en las que podés pasar <span>{pickupDates.length} de 3</span></p>
+            <p className="pickup-dates__title">Las entregas son los jueves. Elegí 3 en los que podés pasar <span>{pickupDates.length} de 3</span></p>
             <div className="pickup-dates__grid" role="group" aria-label="Fechas posibles de retiro">
               {dateOptions.map(date => {
                 const selected = pickupDates.includes(date);
