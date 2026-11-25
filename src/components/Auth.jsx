@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Check, Eye, EyeOff, LockKeyhole, MapPin, ShoppingBag, Store, Wallet } from 'lucide-react';
+import { AlertCircle, Check, Eye, EyeOff, LockKeyhole, X } from 'lucide-react';
 import { authReady, supabase } from '../lib/supabase.js';
-import { localPickups, pickUpPoints } from '../lib/format.js';
 import Modal from './Modal.jsx';
 
 export const LOGO = { small: '/brand/logo-160.webp', medium: '/brand/logo-384.webp', large: '/brand/logo-768.webp' };
@@ -114,7 +113,7 @@ export function AuthForm({ initialMode = 'signup', onSignedIn }) {
         {error && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{error}</p>}
         {message && <p className="alert" role="status"><Check size={16} />{message}</p>}
         <button className="button button--gold button--wide button--large" type="submit" disabled={busy}>
-          {busy ? 'Un momento…' : mode === 'signup' ? 'Crear cuenta y entrar' : mode === 'recover' ? 'Enviar enlace' : 'Entrar a la tienda'}
+          {busy ? 'Un momento…' : mode === 'signup' ? 'Crear cuenta' : mode === 'recover' ? 'Enviar enlace' : 'Ingresar'}
         </button>
       </form>
       <div className="auth-form__links">
@@ -126,37 +125,20 @@ export function AuthForm({ initialMode = 'signup', onSignedIn }) {
   );
 }
 
-// First screen for visitors without a session: register (or sign in) before entering the shop.
-export function AuthGate({ onSignedIn, onAdmin }) {
-  return (
-    <div className="gate">
-      <div className="gate__glow" aria-hidden="true" />
-      <div className="gate__inner">
-        <section className="gate__brand" aria-labelledby="gate-title">
-          <Logo size="medium" className="gate__logo" eager />
-          <h1 id="gate-title">Perfumería y limpieza con retiro en el local o en un punto de encuentro</h1>
-          <p>Creá tu cuenta para ver el catálogo, armar el pedido y pagarlo en efectivo o por transferencia.</p>
-          <ul className="gate__perks">
-            <li><ShoppingBag size={18} /> Catálogo con precios y stock del local</li>
-            <li><Wallet size={18} /> Pago en efectivo o por transferencia</li>
-            <li><MapPin size={18} /> Retiro en {localPickups.join(' o ')}, o en {pickUpPoints.length} puntos de encuentro</li>
-          </ul>
-        </section>
-        <section className="gate__panel" aria-label="Crear cuenta o ingresar">
-          <AuthForm initialMode="signup" onSignedIn={onSignedIn} />
-        </section>
-      </div>
-      <button type="button" className="gate__admin text-link" onClick={onAdmin}><Store size={15} /> Pedidos del local</button>
-    </div>
-  );
-}
+const AUTH_COPY = {
+  checkout: ['Un paso más para enviar tu pedido', 'Creá tu cuenta (o ingresá) para que el local sepa a quién prepararle el pedido. Tu carrito queda guardado.'],
+  orders: ['Ingresá para ver tus pedidos', 'Tus pedidos quedan guardados en tu cuenta.'],
+  account: ['Tu cuenta en CR', 'Con tu cuenta enviás pedidos y seguís su estado desde cualquier dispositivo.'],
+};
 
-export function AuthDialog({ mode, onClose, onSignedIn }) {
+export function AuthDialog({ mode, reason = 'account', onClose, onSignedIn }) {
+  const [title, intro] = AUTH_COPY[reason] || AUTH_COPY.account;
   return (
     <Modal onClose={onClose} labelledBy="auth-dialog-title" className="sheet sheet--narrow">
-      <h2 id="auth-dialog-title" className="sheet__title sheet__title--small">Tu sesión venció</h2>
-      <p className="sheet__intro">Ingresá de nuevo para seguir con el pedido.</p>
-      <AuthForm initialMode={mode || 'login'} onSignedIn={(session, kind) => { onSignedIn(session, kind); onClose(); }} />
+      <button className="icon-button modal__close" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
+      <h2 id="auth-dialog-title" className="sheet__title sheet__title--small">{title}</h2>
+      <p className="sheet__intro">{intro}</p>
+      <AuthForm initialMode={mode || 'login'} onSignedIn={onSignedIn} />
     </Modal>
   );
 }

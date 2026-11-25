@@ -9,7 +9,7 @@ import { DEFAULT_FILTERS, PAGE_SIZE, filtersFromUrl, useCatalogPage, useDebounce
 import { Pagination, ProductCard, SkeletonCard } from './components/Products.jsx';
 import { ActiveFilters, FilterPanel } from './components/Filters.jsx';
 import { CartDialog, CheckoutDialog, MyOrdersDialog, OrderResultDialog, ProductDialog } from './components/Dialogs.jsx';
-import { AuthDialog, AuthGate, BootSplash, IntroOverlay, Logo, PasswordResetDialog } from './components/Auth.jsx';
+import { AuthDialog, BootSplash, IntroOverlay, Logo, PasswordResetDialog } from './components/Auth.jsx';
 import OrderMonitor from './components/OrderMonitor.jsx';
 import CleaningScene from './components/CleaningScene.jsx';
 import Modal from './components/Modal.jsx';
@@ -34,7 +34,7 @@ function Brand({ onClick }) {
   );
 }
 
-function AccountMenu({ session, firstName, onSignOut, onOrders }) {
+function AccountMenu({ session, firstName, onSignOut, onOrders, onSignIn }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -44,6 +44,15 @@ function AccountMenu({ session, firstName, onSignOut, onOrders }) {
     document.addEventListener('keydown', close);
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
   }, [open]);
+  if (!session) {
+    return (
+      <div className="account">
+        <button className="header-action" type="button" onClick={onSignIn} aria-label="Ingresar o crear cuenta">
+          <CircleUserRound size={20} /><span>Ingresar</span>
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="account" ref={ref}>
       <button className="header-action" type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} aria-haspopup="true" aria-label={`Tu cuenta, ${firstName}`}>
@@ -61,7 +70,7 @@ function AccountMenu({ session, firstName, onSignOut, onOrders }) {
 }
 
 
-function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
+function Shop({ session, setSession, onSignedIn, onAdmin, notify, ordersSignal }) {
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...filtersFromUrl() }));
   const debouncedQ = useDebounced(filters.q, 350);
   const queryFilters = useMemo(() => ({ ...filters, q: debouncedQ }), [filters, debouncedQ]);
@@ -74,11 +83,16 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
+  const [authReason, setAuthReason] = useState('account');
   const [detailProduct, setDetailProduct] = useState(null);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [cashResult, setCashResult] = useState(null);
   const [ordersOpen, setOrdersOpen] = useState(false);
-  useEffect(() => { if (ordersSignal) setOrdersOpen(true); }, [ordersSignal]);
+  useEffect(() => {
+    if (!ordersSignal) return;
+    if (session) setOrdersOpen(true);
+    else { setAuthMode('login'); setAuthReason('orders'); setAuthOpen(true); }
+  }, [ordersSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   const searchRef = useRef(null);
   const catalogRef = useRef(null);
 
@@ -135,11 +149,30 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
   };
   const changeQty = (id, qty) => setCart(current => current.map(line => line.id === id ? { ...line, qty: Math.min(99, Math.max(1, qty)) } : line));
   const removeItem = id => setCart(current => current.filter(line => line.id !== id));
-  const startCheckout = () => { setCartOpen(false); setCheckoutOpen(true); };
-  const startAuth = mode => { setAuthMode(mode || 'login'); setAuthOpen(true); setMobileMenu(false); };
+  const startCheckout = () => {
+    setCartOpen(false);
+    // Visitors browse freely; the account is asked for right before the pickup and payment step.
+    if (!session) startAuth('signup', 'checkout');
+    else setCheckoutOpen(true);
+  };
+  const startAuth = (mode, reason = 'account') => { setAuthMode(mode || 'login'); setAuthReason(reason); setAuthOpen(true); setMobileMenu(false); };
+  // After signing in, pick up where the visitor was: the checkout or their orders.
+  const afterAuth = (nextSession, kind) => {
+    onSignedIn(nextSession, kind);
+    setAuthOpen(false);
+    if (authReason === 'checkout') setCheckoutOpen(true);
+    else if (authReason === 'orders') setOrdersOpen(true);
+  };
   const signOut = async () => { if (supabase) await supabase.auth.signOut(); setSession(null); };
   const toTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); setMobileMenu(false); };
   const firstName = session?.user?.user_metadata?.full_name?.split(' ')[0] || 'Mi cuenta';
+
+  // A clear tab title per view helps people (and Google) know which list they are on.
+  useEffect(() => {
+    const base = 'CR Perfumería & Limpieza';
+    const term = debouncedQ.trim();
+    document.title = filters.category ? `${filters.category} | ${base}` : filters.brand ? `${filters.brand} | ${base}` : term ? `Buscar “${term}” | ${base}` : `${base} | Perfumería y limpieza con retiro`;
+  }, [filters.category, filters.brand, debouncedQ]);
 
 
   const from = catalog.total ? (filters.page - 1) * PAGE_SIZE + 1 : 0;
@@ -165,7 +198,7 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
             {filters.q ? <button type="button" className="search__clear" onClick={() => updateFilters({ q: '' })} aria-label="Borrar búsqueda"><X size={15} /></button> : <kbd>Ctrl K</kbd>}
           </form>
           <div className="header-actions">
-            <AccountMenu session={session} firstName={firstName} onSignOut={signOut} onOrders={() => setOrdersOpen(true)} />
+            <AccountMenu session={session} firstName={firstName} onSignOut={signOut} onOrders={() => setOrdersOpen(true)} onSignIn={() => startAuth('login')} />
             <button className="header-action header-action--cart" type="button" onClick={() => setCartOpen(true)} aria-label={`Abrir carrito, ${cartCount} artículos`}>
               <ShoppingBag size={20} /><span>Carrito</span>{cartCount > 0 && <b key={cartCount}>{cartCount}</b>}
             </button>
@@ -208,7 +241,7 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
                 <button className="button button--outline filters-button" type="button" onClick={() => setFiltersOpen(true)}><SlidersHorizontal size={16} /> Filtros{activeCount > 0 && <b>{activeCount}</b>}</button>
                 <label className="select">
                   <span>Ordenar</span>
-                  <select value={filters.sort} onChange={event => updateFilters({ sort: event.target.value })}>
+                  <select aria-label="Ordenar productos" value={filters.sort} onChange={event => updateFilters({ sort: event.target.value })}>
                     {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </select>
                   <ChevronDown size={15} aria-hidden="true" />
@@ -302,10 +335,10 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
         </Modal>
       )}
       {cartOpen && <CartDialog items={cartItems} total={cartTotal} onClose={() => setCartOpen(false)} onQty={changeQty} onRemove={removeItem} onCheckout={startCheckout} />}
-      {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onCashOrdered={(data, items) => { setCart([]); setCheckoutOpen(false); setCashResult({ state: data.paymentMethod === 'transferencia' ? 'transfer' : 'cash', order: { order_number: data.orderNumber, pickup_point: data.pickupPoint, pickup_dates: data.pickupDates, total_amount: data.total, payment_method: data.paymentMethod || 'efectivo', transfer: data.transfer, items: items.map(item => ({ product_name: item.name, quantity: item.qty })) } }); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
+      {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onCashOrdered={(data, items) => { setCart([]); setCheckoutOpen(false); setCashResult({ state: data.paymentMethod === 'transferencia' ? 'transfer' : 'cash', order: { order_number: data.orderNumber, pickup_point: data.pickupPoint, pickup_dates: data.pickupDates, total_amount: data.total, payment_method: data.paymentMethod || 'efectivo', transfer: data.transfer, items: items.map(item => ({ product_name: item.name, quantity: item.qty })) } }); }} onLogin={() => { setCheckoutOpen(false); startAuth('signup', 'checkout'); }} />}
       {cashResult && <OrderResultDialog result={cashResult} session={session} onClose={() => setCashResult(null)} onShowOrders={() => { setCashResult(null); setOrdersOpen(true); }} />}
-      {ordersOpen && <MyOrdersDialog session={session} onClose={() => setOrdersOpen(false)} />}
-      {authOpen && <AuthDialog mode={authMode} onClose={() => setAuthOpen(false)} onSignedIn={nextSession => setSession(nextSession)} />}
+      {ordersOpen && session && <MyOrdersDialog session={session} onClose={() => setOrdersOpen(false)} />}
+      {authOpen && <AuthDialog mode={authMode} reason={authReason} onClose={() => setAuthOpen(false)} onSignedIn={afterAuth} />}
       {detailProduct && <ProductDialog product={detailProduct} inCart={qtyInCart[detailProduct.id] || 0} onClose={() => setDetailProduct(null)} onAdd={addToCart} />}
     </div>
   );
@@ -342,9 +375,9 @@ export default function App() {
     return () => { alive = false; listener.subscription.unsubscribe(); };
   }, []);
 
-  // A tap on an order notice opens the app at /?mis-pedidos=1: show Mis pedidos once signed in.
+  // A tap on an order notice opens the app at /?mis-pedidos=1: show Mis pedidos (or ask to sign in first).
   useEffect(() => {
-    if (checking || !session) return;
+    if (checking) return;
     const params = new URLSearchParams(window.location.search);
     if (!params.has('mis-pedidos')) return;
     params.delete('mis-pedidos');
@@ -374,8 +407,7 @@ export default function App() {
 
   let screen;
   if (checking) screen = <BootSplash />;
-  else if (!session) screen = <AuthGate onSignedIn={signedIn} onAdmin={() => setOrderMonitorOpen(true)} />;
-  else screen = <Shop session={session} setSession={setSession} onAdmin={() => setOrderMonitorOpen(true)} notify={notify} ordersSignal={ordersSignal} />;
+  else screen = <Shop session={session} setSession={setSession} onSignedIn={signedIn} onAdmin={() => setOrderMonitorOpen(true)} notify={notify} ordersSignal={ordersSignal} />;
 
   return (
     <>
@@ -383,7 +415,7 @@ export default function App() {
       {intro && session && <IntroOverlay name={intro.name} kind={intro.kind} onDone={() => setIntro(null)} />}
       {recovering && session && <PasswordResetDialog onClose={() => setRecovering(false)} onDone={() => { setRecovering(false); notify('Guardamos tu contraseña nueva.'); }} />}
       {orderMonitorOpen && <OrderMonitor connectionResult={mpConnectResult} onClose={() => setOrderMonitorOpen(false)} />}
-      {!checking && orderReturn.result && <OrderResultDialog result={orderReturn.result} onClose={orderReturn.close} onShowOrders={session ? () => { orderReturn.close(); setOrdersSignal(n => n + 1); } : null} />}
+      {!checking && orderReturn.result && <OrderResultDialog result={orderReturn.result} onClose={orderReturn.close} onShowOrders={() => { orderReturn.close(); setOrdersSignal(n => n + 1); }} />}
       {!checking && !orderReturn.result && <InstallPrompt />}
       {toast && <div className="toast" role="status"><span><Check size={16} /></span>{toast}</div>}
     </>

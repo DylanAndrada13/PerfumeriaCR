@@ -126,8 +126,8 @@ export function CartDialog({ items, total, onClose, onQty, onRemove, onCheckout 
           <div className="total-row"><span>Subtotal</span><strong>{money(total)}</strong></div>
           {blocked
             ? <p className="alert alert--error"><AlertCircle size={16} />Quitá los productos sin stock para seguir.</p>
-            : <p className="note">El precio y el stock se confirman otra vez al pagar.</p>}
-          <button className="button button--gold button--wide" type="button" disabled={blocked} onClick={onCheckout}>Elegir punto de retiro</button>
+            : <p className="note">El precio y el stock se confirman otra vez al enviar el pedido.</p>}
+          <button className="button button--gold button--wide" type="button" disabled={blocked} onClick={onCheckout}>Continuar compra</button>
           <button className="button button--ghost button--wide" type="button" onClick={onClose}>Seguir comprando</button>
         </footer>
       )}
@@ -198,11 +198,11 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
   const count = items.reduce((sum, item) => sum + item.qty, 0);
   const label = busy
     ? (online ? 'Conectando con Mercado Pago…' : 'Enviando pedido…')
-    : !contactReady ? (dniReady ? 'Completá tu nombre y teléfono' : 'Completá tu DNI')
     : !pickupType ? 'Elegí cómo retirás el pedido'
     : !pickup ? (pickupType === 'local' ? 'Elegí el local' : 'Elegí un punto de encuentro')
     : !pickupReady ? 'Elegí la fecha de entrega'
-      : !method ? 'Elegí cómo vas a pagar'
+    : !method ? 'Elegí cómo vas a pagar'
+    : !contactReady ? (dniReady ? 'Completá tu nombre y teléfono' : 'Completá tu DNI')
         : cash ? 'Enviar pedido' : transfer ? 'Ver datos para transferir' : `Pagar ${money(grandTotal)} con Mercado Pago`;
   return (
     <Modal onClose={onClose} labelledBy="checkout-title" className="sheet checkout">
@@ -216,16 +216,6 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
         <li><span>3</span>{cash ? 'Confirmación' : 'Pago'}</li>
       </ol>
       <h2 id="checkout-title" className="sheet__title">Retiro y pago</h2>
-      <section className="checkout__section">
-        <h3><Contact size={17} /> Tus datos</h3>
-        <div className="checkout__contact">
-          <label className="field">Nombre y apellido<input autoComplete="name" value={customerName} onChange={e => setCustomerName(e.target.value)} required minLength={2} maxLength={160} /></label>
-          <label className="field">{transfer ? 'WhatsApp' : 'Teléfono o WhatsApp'}<input type="tel" inputMode="tel" autoComplete="tel" placeholder="11 2345 6789" value={customerPhone} onChange={e => setCustomerPhone(e.target.value.replace(/[^\d\s()+-]/g, ''))} required maxLength={40} /></label>
-          {transfer && <label className="field">DNI<input inputMode="numeric" autoComplete="off" placeholder="30123456" value={customerDni} onChange={e => setCustomerDni(e.target.value.replace(/\D/g, '').slice(0, 9))} required minLength={6} maxLength={9} /></label>}
-          <label className="field checkout__note">Nota para el local (opcional)<textarea rows={2} maxLength={300} value={customerNote} onChange={e => setCustomerNote(e.target.value)} placeholder="Por ejemplo, en qué horario te queda mejor" /></label>
-        </div>
-        <p className="note">{transfer ? 'Con tu nombre y DNI reconocemos la transferencia. Te avisamos por WhatsApp cuando confirmemos el pago.' : 'El local te escribe a este número si hay algún cambio con tu pedido.'}</p>
-      </section>
       <section className="checkout__section">
         <h3><MapPin size={17} /> Cómo lo retirás</h3>
         <div className="choice-grid" role="radiogroup" aria-label="Forma de retiro">
@@ -277,6 +267,16 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
         {cash && <p className="note">El local revisa el pedido y te lo prepara. Separamos los productos apenas lo enviás; lo pagás en efectivo cuando lo retirás.</p>}
         {transfer && <p className="note">Al enviar el pedido te mostramos el alias, el CBU y el monto exacto. Separamos los productos y el local confirma el pago cuando ve la transferencia.</p>}
       </section>
+      <section className="checkout__section">
+        <h3><Contact size={17} /> Tus datos</h3>
+        <div className="checkout__contact">
+          <label className="field">Nombre y apellido<input autoComplete="name" value={customerName} onChange={e => setCustomerName(e.target.value)} required minLength={2} maxLength={160} /></label>
+          <label className="field">{transfer ? 'WhatsApp' : 'Teléfono o WhatsApp'}<input type="tel" inputMode="tel" autoComplete="tel" placeholder="11 2345 6789" value={customerPhone} onChange={e => setCustomerPhone(e.target.value.replace(/[^\d\s()+-]/g, ''))} required maxLength={40} /></label>
+          {transfer && <label className="field">DNI<input inputMode="numeric" autoComplete="off" placeholder="30123456" value={customerDni} onChange={e => setCustomerDni(e.target.value.replace(/\D/g, '').slice(0, 9))} required minLength={6} maxLength={9} /></label>}
+          <label className="field checkout__note">Nota para el local (opcional)<textarea rows={2} maxLength={300} value={customerNote} onChange={e => setCustomerNote(e.target.value)} placeholder="Por ejemplo, en qué horario te queda mejor" /></label>
+        </div>
+        <p className="note">{transfer ? 'Con tu nombre y DNI reconocemos la transferencia. Te avisamos por WhatsApp cuando confirmemos el pago.' : 'El local te escribe a este número si hay algún cambio con tu pedido.'}</p>
+      </section>
       {online && surcharge > 0 && (
         <div className="total-breakdown">
           <div><span>Productos</span><span>{money(total)}</span></div>
@@ -285,7 +285,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
       )}
       <div className="total-row total-row--boxed"><span>{count} {count === 1 ? 'artículo' : 'artículos'}</span><strong>{money(grandTotal)}</strong></div>
       {!session?.user
-        ? <button className="button button--gold button--wide" type="button" onClick={onLogin}><CircleUserRound size={17} /> Ingresar para pagar</button>
+        ? <button className="button button--gold button--wide" type="button" onClick={onLogin}><CircleUserRound size={17} /> Ingresar para enviar el pedido</button>
         : <button className="button button--gold button--wide" type="button" disabled={!contactReady || !pickupReady || !method || busy || items.length === 0} onClick={submit}>{label}</button>}
       <button className="button button--ghost button--wide" type="button" disabled={busy} onClick={onClose}>Cancelar compra</button>
       {error && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{error}</p>}

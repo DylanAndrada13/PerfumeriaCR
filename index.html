@@ -1,24 +1,78 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-AR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0b0a08" />
-    <meta name="description" content="Encontrá tus productos de perfumería y limpieza favoritos en CR. Elegí, armá tu compra y retirala cerca." />
+    <title>CR Perfumería & Limpieza | Perfumería y limpieza con retiro</title>
+    <meta name="description" content="Tienda online de CR Perfumería & Limpieza: más de 1000 productos de perfumería, cuidado personal y limpieza con precios y stock del local. Pedí online, pagá en efectivo o por transferencia y retiralo en Itatí, La Haya o un punto de encuentro." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://perfumeria-cr.vercel.app/" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-bag-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon-bag-64.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-bag.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_AR" />
+    <meta property="og:site_name" content="CR Perfumería & Limpieza" />
+    <meta property="og:url" content="https://perfumeria-cr.vercel.app/" />
     <meta property="og:title" content="CR Perfumería & Limpieza" />
     <meta property="og:description" content="Perfumería y limpieza con retiro en el local o en un punto de encuentro. Pedí online y pagá en efectivo o por transferencia." />
-    <meta property="og:image" content="/brand/og.jpg" />
+    <meta property="og:image" content="https://perfumeria-cr.vercel.app/brand/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Logo de CR Perfumería & Limpieza" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CR Perfumería & Limpieza" />
+    <meta name="twitter:description" content="Perfumería y limpieza con retiro en el local o en un punto de encuentro." />
+    <meta name="twitter:image" content="https://perfumeria-cr.vercel.app/brand/og.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Store",
+            "@id": "https://perfumeria-cr.vercel.app/#tienda",
+            "name": "CR Perfumería & Limpieza",
+            "description": "Perfumería, cuidado personal y artículos de limpieza con retiro en el local o en un punto de encuentro.",
+            "url": "https://perfumeria-cr.vercel.app/",
+            "logo": "https://perfumeria-cr.vercel.app/brand/logo-768.png",
+            "image": "https://perfumeria-cr.vercel.app/brand/og.jpg",
+            "telephone": "+54 9 11 3369-7693",
+            "priceRange": "$",
+            "currenciesAccepted": "ARS",
+            "paymentAccepted": "Efectivo, Transferencia bancaria",
+            "areaServed": { "@type": "City", "name": "Lanús, Buenos Aires" },
+            "sameAs": ["https://wa.me/5491133697693"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://perfumeria-cr.vercel.app/#sitio",
+            "url": "https://perfumeria-cr.vercel.app/",
+            "name": "CR Perfumería & Limpieza",
+            "inLanguage": "es-AR",
+            "publisher": { "@id": "https://perfumeria-cr.vercel.app/#tienda" },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://perfumeria-cr.vercel.app/?buscar={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
-    <title>CR Perfumería & Limpieza</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main style="max-width:720px;margin:0 auto;padding:48px 20px;color:#f3ead7;font-family:system-ui,sans-serif">
+        <h1>CR Perfumería & Limpieza</h1>
+        <p>Perfumería, cuidado personal y artículos de limpieza con precios y stock del local. Armá tu pedido online, pagalo en efectivo o por transferencia y retiralo en el Local Itatí, el Local La Haya o en un punto de encuentro (Coto Lanús, Ciclón Caraza, UPA Recondo o Maxi Carrefour).</p>
+        <p>Consultas por WhatsApp: <a href="https://wa.me/5491133697693" style="color:#d9b45e">11 3369-7693</a></p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
