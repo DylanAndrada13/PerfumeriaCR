@@ -24,19 +24,20 @@ function CopyButton({ value, label }) {
 // Bank transfer details: who to pay and how much. Shown after ordering and in Mis pedidos.
 export function TransferInstructions({ transfer, total, orderNumber, compact = false }) {
   if (!transfer) return null;
+  const kind = String(transfer.cvu).startsWith('000') ? 'CVU' : 'CBU';
   return (
     <section className={`transfer ${compact ? 'transfer--compact' : ''}`} aria-label="Datos para transferir">
       <p className="transfer__amount"><span>Transferí exactamente</span><strong>{money(total)}</strong></p>
       <dl className="transfer__facts">
         <div><dt>Alias</dt><dd>{transfer.alias}</dd></div>
-        <div><dt>CVU</dt><dd className="transfer__cvu">{transfer.cvu}</dd></div>
+        <div><dt>{kind}</dt><dd className="transfer__cvu">{transfer.cvu}</dd></div>
         <div><dt>Titular</dt><dd>{transfer.holder}</dd></div>
         {transfer.bank && <div><dt>Banco</dt><dd>{transfer.bank}</dd></div>}
         {orderNumber && <div><dt>Pedido</dt><dd>{orderNumber}</dd></div>}
       </dl>
       <div className="transfer__actions">
         <CopyButton value={transfer.alias} label="Copiar alias" />
-        <CopyButton value={transfer.cvu} label="Copiar CVU" />
+        <CopyButton value={transfer.cvu} label={`Copiar ${kind}`} />
         <a className="button button--gold transfer__open" href="https://www.mercadopago.com.ar/" target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> Abrir Mercado Pago</a>
       </div>
       <p className="note">Podés transferir desde cualquier banco o billetera. Si ya transferiste, te vamos a avisar por WhatsApp cuando confirmemos el pago.</p>
@@ -268,12 +269,12 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
           </button>
           {options.transferEnabled && (
             <button type="button" role="radio" aria-checked={transfer} className={`choice choice--tall ${transfer ? 'is-selected' : ''}`} onClick={() => setMethod('transferencia')}>
-              <span className="choice__dot" aria-hidden="true" /><Landmark size={18} className="choice__icon" /><span><strong>Transferencia</strong><small>A nuestro alias o CVU · sin recargo</small></span>
+              <span className="choice__dot" aria-hidden="true" /><Landmark size={18} className="choice__icon" /><span><strong>Transferencia</strong><small>A nuestro alias o CBU · sin recargo</small></span>
             </button>
           )}
         </div>
         {cash && <p className="note">El local revisa el pedido y te lo prepara. Separamos los productos apenas lo enviás; lo pagás en efectivo cuando lo retirás.</p>}
-        {transfer && <p className="note">Al enviar el pedido te mostramos el alias, el CVU y el monto exacto. Separamos los productos y el local confirma el pago cuando ve la transferencia.</p>}
+        {transfer && <p className="note">Al enviar el pedido te mostramos el alias, el CBU y el monto exacto. Separamos los productos y el local confirma el pago cuando ve la transferencia.</p>}
       </section>
       {online && surcharge > 0 && (
         <div className="total-breakdown">
