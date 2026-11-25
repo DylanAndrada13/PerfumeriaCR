@@ -1,4 +1,5 @@
 import { signUp } from '../lib/auth-api.js';
+import { orderStatusPush, pushPublicKey, subscribePush, unsubscribePush } from '../lib/push.js';
 import {
   adminLogin,
   adminOrderAction,
@@ -32,6 +33,10 @@ const handlers = {
   'admin/mp/status': mercadoPagoConnectionStatus,
   'admin/mp/payments': sellerRecentPayments,
   'payments/options': paymentOptions,
+  'push/key': pushPublicKey,
+  'push/subscribe': subscribePush,
+  'push/unsubscribe': unsubscribePush,
+  'push/order-status': orderStatusPush,
   'auth/signup': signUp,
   'catalog/facets': handleCatalogFacets,
   'catalog/products': handleCatalogProducts,

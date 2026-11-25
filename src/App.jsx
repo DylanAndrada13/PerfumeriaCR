@@ -342,6 +342,16 @@ export default function App() {
     return () => { alive = false; listener.subscription.unsubscribe(); };
   }, []);
 
+  // A tap on an order notice opens the app at /?mis-pedidos=1: show Mis pedidos once signed in.
+  useEffect(() => {
+    if (checking || !session) return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('mis-pedidos')) return;
+    params.delete('mis-pedidos');
+    window.history.replaceState({}, '', `${window.location.pathname}${params.size ? `?${params}` : ''}${window.location.hash}`);
+    setOrdersSignal(n => n + 1);
+  }, [checking, session]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const connectStatus = params.get('mp_connect');

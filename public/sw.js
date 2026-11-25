@@ -1,4 +1,4 @@
-const CACHE = 'cr-store-shell-v4';
+const CACHE = 'cr-store-shell-v5';
 const SHELL = ['/', '/manifest.webmanifest', '/brand/logo-160.webp', '/brand/logo-384.webp', '/brand/app-bag-192.png'];
 
 self.addEventListener('install', event => {
@@ -30,4 +30,32 @@ self.addEventListener('fetch', event => {
       return response;
     })));
   }
+});
+
+// Order status notices sent by the server (lib/push.js).
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data ? event.data.text() : '' }; }
+  const title = data.title || 'CR Perfumería';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || 'Tu pedido cambió de estado.',
+    icon: '/brand/app-bag-192.png',
+    badge: '/favicon-bag-64.png',
+    tag: data.tag || undefined,
+    renotify: Boolean(data.tag),
+    data: { url: data.url || '/?mis-pedidos=1' },
+  }));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+    for (const client of windows) {
+      if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
+        return client.focus().then(focused => (focused && 'navigate' in focused ? focused.navigate(target) : focused));
+      }
+    }
+    return self.clients.openWindow(target);
+  }));
 });

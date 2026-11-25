@@ -4,6 +4,7 @@ import { formatPickupDate, localPickups, money, pickUpPoints, pickupDateOptions,
 import { supabase } from '../lib/supabase.js';
 import { rememberPendingOrder } from '../lib/orderReturn.js';
 import Modal from './Modal.jsx';
+import PushOptIn from './PushOptIn.jsx';
 import { ProductImage, availability } from './Products.jsx';
 
 export const paymentLabel = order => order.payment_method === 'efectivo' ? 'Efectivo al retirar' : order.payment_method === 'transferencia' ? 'Transferencia' : 'Mercado Pago';
@@ -345,6 +346,7 @@ export function OrderResultDialog({ result, onClose, onShowOrders }) {
       {order?.items?.length > 0 && (
         <ul className="result__items">{order.items.map((item, i) => <li key={`${item.product_name}-${i}`}><span>{item.quantity} ×</span> {item.product_name}</li>)}</ul>
       )}
+      {(state === 'cash' || state === 'transfer') && <PushOptIn />}
       <div className="result__actions">
         <button className="button button--gold button--wide" type="button" onClick={onClose}>Seguir comprando</button>
         {onShowOrders
@@ -372,6 +374,7 @@ export function MyOrdersDialog({ session, onClose }) {
         <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
       </header>
       <div className="drawer__items">
+        <PushOptIn compact />
         {state.loading && <p className="note my-orders__loading"><Loader2 size={16} className="spin" /> Cargando pedidos…</p>}
         {state.error && <p className="alert alert--error"><AlertCircle size={16} />{state.error}</p>}
         {!state.loading && !state.error && state.orders.length === 0 && (

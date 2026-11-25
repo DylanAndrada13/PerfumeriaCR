@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { CATALOG_CACHE, catalogErrorMessage, getCatalogFacets, getCatalogPage, getProductsByIds } from './lib/server-catalog.js';
 import { createOrder, mercadoPagoWebhook, orderStatus, adminLogin, adminOrders, adminOrderAction, myOrders, paymentOptions, sellerRecentPayments, reconcilePendingOrders } from './lib/order-api.js';
 import { signUp } from './lib/auth-api.js';
+import { pushPublicKey, subscribePush, unsubscribePush, orderStatusPush } from './lib/push.js';
 import { startMercadoPagoConnect, mercadoPagoOAuthCallback, mercadoPagoConnectionStatus } from './lib/mercadopago-oauth.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +27,10 @@ app.get('/api/admin/mp/connect', startMercadoPagoConnect);
 app.get('/api/admin/mp/status', mercadoPagoConnectionStatus);
 app.get('/api/admin/mp/payments', sellerRecentPayments);
 app.get('/api/payments/options', paymentOptions);
+app.get('/api/push/key', pushPublicKey);
+app.post('/api/push/subscribe', subscribePush);
+app.post('/api/push/unsubscribe', unsubscribePush);
+app.post('/api/push/order-status', orderStatusPush);
 app.all('/api/orders/reconcile', reconcilePendingOrders);
 app.get('/api/mp/oauth/callback', mercadoPagoOAuthCallback);
 app.get('/api/catalog/products', async (request, response) => {
