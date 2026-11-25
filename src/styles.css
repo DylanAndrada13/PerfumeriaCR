@@ -767,3 +767,5 @@ body { touch-action: pan-x pan-y; }
 .push-optin--on, .push-optin--info { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; font-size: 14px; line-height: 1.35; }
 .push-optin--on { background: color-mix(in srgb, #2f9e5b 14%, transparent); color: inherit; }
 .push-optin--info { background: color-mix(in srgb, currentColor 7%, transparent); }
+
+.my-order__cancel { margin-top: 8px; padding: 6px 12px; font-size: 13px; }

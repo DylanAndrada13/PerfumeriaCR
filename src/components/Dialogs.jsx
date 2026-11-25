@@ -287,11 +287,25 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
       {!session?.user
         ? <button className="button button--gold button--wide" type="button" onClick={onLogin}><CircleUserRound size={17} /> Ingresar para pagar</button>
         : <button className="button button--gold button--wide" type="button" disabled={!contactReady || !pickupReady || !method || busy || items.length === 0} onClick={submit}>{label}</button>}
+      <button className="button button--ghost button--wide" type="button" disabled={busy} onClick={onClose}>Cancelar compra</button>
       {error && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{error}</p>}
       <p className="sheet__secure"><LockKeyhole size={14} /> {cash ? 'No se cobra nada ahora: pagás al retirar.' : transfer ? 'El pedido queda pagado cuando el local confirma tu transferencia.' : 'El pedido queda pagado solo cuando Mercado Pago lo confirma.'}</p>
     </Modal>
   );
 }
+
+// Lets the buyer cancel a cash or transfer order the local has not accepted yet. The stock goes back.
+async function cancelOrder(session, orderNumber) {
+  if (!window.confirm('¿Cancelar el pedido? Los productos vuelven a estar disponibles.')) return false;
+  const response = await fetch('/api/orders/cancel', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ orderNumber }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'No se pudo cancelar el pedido.');
+  return true;
+}
+const canCancel = order => ['efectivo', 'transferencia'].includes(order.payment_method) && order.order_status === 'pending_review' && order.payment_status !== 'paid';
 
 const STEP_TEXT = {
   pending_review: 'Esperando que el local lo acepte',
@@ -316,9 +330,20 @@ export function orderStatusText(order) {
 }
 
 // Shown after a cash order is sent, and after coming back from Mercado Pago.
-export function OrderResultDialog({ result, onClose, onShowOrders }) {
-  const { state, order } = result;
+export function OrderResultDialog({ result, onClose, onShowOrders, session }) {
+  const { order } = result;
+  const [cancelled, setCancelled] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+  const state = cancelled ? 'cancelled' : result.state;
+  const cancel = async () => {
+    setCancelBusy(true); setCancelError('');
+    try { if (await cancelOrder(session, order.order_number)) setCancelled(true); }
+    catch (err) { setCancelError(err.message); }
+    finally { setCancelBusy(false); }
+  };
   const content = {
+    cancelled: { icon: <XCircle size={42} />, tone: 'error', title: 'Pedido cancelado', text: 'Cancelaste el pedido. No se cobró nada.' },
     transfer: { icon: <Landmark size={42} />, tone: 'ok', title: 'Pedido recibido: ahora transferí', text: 'Separamos los productos. Transferí el monto exacto a esta cuenta; cuando el local vea la plata te avisa por WhatsApp y prepara el pedido.' },
     cash: { icon: <CheckCircle2 size={44} />, tone: 'ok', title: '¡Tu pedido fue enviado!', text: 'El local lo revisa, te escribe por WhatsApp para confirmar el día y la hora, y lo pagás en efectivo cuando lo retirás.' },
     paid: { icon: <CheckCircle2 size={44} />, tone: 'ok', title: '¡Tu compra fue hecha!', text: 'Mercado Pago confirmó el pago. Te escribimos por WhatsApp para coordinar el retiro, y el estado lo ves en Mis pedidos.' },
@@ -349,6 +374,8 @@ export function OrderResultDialog({ result, onClose, onShowOrders }) {
       {(state === 'cash' || state === 'transfer') && <PushOptIn />}
       <div className="result__actions">
         <button className="button button--gold button--wide" type="button" onClick={onClose}>Seguir comprando</button>
+        {(state === 'cash' || state === 'transfer') && session?.access_token && order?.order_number && <button className="button button--ghost button--wide" type="button" disabled={cancelBusy} onClick={cancel}>{cancelBusy ? <Loader2 size={16} className="spin" /> : null} Cancelar compra</button>}
+        {cancelError && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{cancelError}</p>}
         {onShowOrders
           ? <button className="button button--ghost button--wide" type="button" onClick={onShowOrders}>Ver mis pedidos</button>
           : <p className="note">Iniciá sesión para ver todos tus pedidos.</p>}
@@ -359,6 +386,15 @@ export function OrderResultDialog({ result, onClose, onShowOrders }) {
 
 export function MyOrdersDialog({ session, onClose }) {
   const [state, setState] = useState({ loading: true, orders: [], error: '' });
+  const [reload, setReload] = useState(0);
+  const [cancelling, setCancelling] = useState('');
+  const [cancelError, setCancelError] = useState('');
+  const cancel = async orderNumber => {
+    setCancelling(orderNumber); setCancelError('');
+    try { if (await cancelOrder(session, orderNumber)) setReload(n => n + 1); }
+    catch (err) { setCancelError(err.message); }
+    finally { setCancelling(''); }
+  };
   useEffect(() => {
     let alive = true;
     fetch('/api/orders/mine', { headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store' })
@@ -366,7 +402,7 @@ export function MyOrdersDialog({ session, onClose }) {
       .then(data => { if (alive) setState({ loading: false, orders: data.orders || [], error: '' }); })
       .catch(error => { if (alive) setState({ loading: false, orders: [], error: error.message || 'No se pudieron cargar tus pedidos.' }); });
     return () => { alive = false; };
-  }, [session.access_token]);
+  }, [session.access_token, reload]);
   return (
     <Modal onClose={onClose} variant="drawer" labelledBy="orders-title" className="drawer">
       <header className="drawer__header">
@@ -377,6 +413,7 @@ export function MyOrdersDialog({ session, onClose }) {
         <PushOptIn compact />
         {state.loading && <p className="note my-orders__loading"><Loader2 size={16} className="spin" /> Cargando pedidos…</p>}
         {state.error && <p className="alert alert--error"><AlertCircle size={16} />{state.error}</p>}
+        {cancelError && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{cancelError}</p>}
         {!state.loading && !state.error && state.orders.length === 0 && (
           <div className="empty-state empty-state--small"><Package size={28} strokeWidth={1.3} /><h3>Todavía no hiciste pedidos</h3><p>Cuando compres algo, lo vas a ver acá con su estado.</p></div>
         )}
@@ -390,6 +427,7 @@ export function MyOrdersDialog({ session, onClose }) {
             {Number(order.surcharge_amount) > 0 && <p>Incluye {money(order.surcharge_amount)} de recargo por pago online.</p>}
             {order.transfer && <TransferInstructions transfer={order.transfer} total={order.total_amount} compact />}
             <footer><span>{paymentLabel(order)}{order.payment_status === 'paid' ? ' · pagado' : ''}</span><strong>{money(order.total_amount)}</strong></footer>
+            {canCancel(order) && <button className="button button--ghost my-order__cancel" type="button" disabled={cancelling === order.order_number} onClick={() => cancel(order.order_number)}>{cancelling === order.order_number ? 'Cancelando…' : 'Cancelar pedido'}</button>}
           </article>
         ))}
       </div>

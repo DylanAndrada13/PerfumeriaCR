@@ -18,6 +18,7 @@
     { "source": "/api/catalog/facets", "destination": "/api/handler?route=catalog/facets" },
     { "source": "/api/catalog/products", "destination": "/api/handler?route=catalog/products" },
     { "source": "/api/mp/oauth/callback", "destination": "/api/handler?route=mp/oauth/callback" },
+    { "source": "/api/orders/cancel", "destination": "/api/handler?route=orders/cancel" },
     { "source": "/api/orders/create", "destination": "/api/handler?route=orders/create" },
     { "source": "/api/orders/mine", "destination": "/api/handler?route=orders/mine" },
     { "source": "/api/orders/reconcile", "destination": "/api/handler?route=orders/reconcile" },
