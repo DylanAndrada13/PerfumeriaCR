@@ -1,8 +1,9 @@
 import { pickupLabel } from '../lib/format.js';
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Bell, LockKeyhole, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { AlertCircle, Bell, LockKeyhole, Receipt, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { money } from '../lib/format.js';
 import Modal from './Modal.jsx';
+import OrderTicket from './OrderTicket.jsx';
 
 const mpConnectMessages = {
   success: 'Mercado Pago autorizó la cuenta. El panel confirma abajo si quedó guardada.',
@@ -50,6 +51,7 @@ export default function OrderMonitor({ onClose, connectionResult }) {
   const [connectionError, setConnectionError] = useState('');
   const [filter, setFilter] = useState('active');
   const [working, setWorking] = useState('');
+  const [ticketId, setTicketId] = useState('');
   const load = async () => {
     const response = await fetch('/api/admin/orders', { credentials: 'same-origin' });
     const data = await response.json();
@@ -100,6 +102,7 @@ export default function OrderMonitor({ onClose, connectionResult }) {
   )), [orders, filter]);
 
   const env = sellerConnection?.environment;
+  const ticketOrder = ticketId ? orders.find(order => order.id === ticketId) : null;
   return (
     <Modal onClose={onClose} labelledBy="admin-title" className="sheet admin">
       <button className="icon-button modal__close" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
@@ -111,6 +114,8 @@ export default function OrderMonitor({ onClose, connectionResult }) {
           <label className="field">Clave<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label>
           <button className="button button--gold button--wide" disabled={busy}>{busy ? 'Ingresando…' : 'Ver pedidos'}</button>
         </form>
+      ) : ticketOrder ? (
+        <OrderTicket order={ticketOrder} onBack={() => setTicketId('')} />
       ) : (
         <>
           <section className="mp-connection">
@@ -138,7 +143,7 @@ export default function OrderMonitor({ onClose, connectionResult }) {
           </div>
           <div className="admin__orders">
             {visible.length === 0 ? <p className="note">No hay pedidos en esta vista.</p> : visible.map(order => (
-              <article className={`admin-order ${order.order_status === 'pending_review' ? 'admin-order--new' : ''}`} key={order.id}>
+              <article className={`admin-order admin-order--clickable ${order.order_status === 'pending_review' ? 'admin-order--new' : ''}`} key={order.id} onClick={event => { if (!event.target.closest('button, a')) setTicketId(order.id); }}>
                 <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{ORDER_LABEL[order.order_status] || order.order_status}</span></header>
                 <p>{order.customer_name} · {order.customer_email}{order.customer_phone ? ` · ${order.customer_phone}` : ""}</p>
                 {order.customer_note && <p className="note">Nota: {order.customer_note}</p>}
@@ -146,15 +151,14 @@ export default function OrderMonitor({ onClose, connectionResult }) {
                 <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>
                 {order.stock_shortage?.length > 0 && <p className="alert alert--error"><AlertCircle size={16} />Faltó stock al descontar: revisá {order.stock_shortage.length === 1 ? 'un producto' : `${order.stock_shortage.length} productos`} antes de prepararlo.</p>}
                 <footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : 'Efectivo al retirar'} · {statusLabel(order.payment_status)}</span><strong>{money(order.total_amount)}</strong></footer>
-                {actionsFor(order).length > 0 && (
-                  <div className="admin-order__actions">
-                    {actionsFor(order).map(([action, label]) => (
+                <div className="admin-order__actions">
+                  <button type="button" className="button button--small button--ghost" onClick={() => setTicketId(order.id)}><Receipt size={15} /> Ver ticket</button>
+                  {actionsFor(order).map(([action, label]) => (
                       <button key={action} type="button" className={`button button--small ${action === 'reject' ? 'button--ghost' : action === 'accept' || action === 'deliver' ? 'button--gold' : 'button--outline'}`} disabled={Boolean(working)} onClick={() => act(order, action)}>
                         {working === `${order.id}:${action}` ? 'Guardando…' : label}
                       </button>
-                    ))}
-                  </div>
-                )}
+                  ))}
+                </div>
               </article>
             ))}
           </div>
