@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Check, ChevronDown, CircleUserRound, LogOut, MapPin, Menu, MessageCircle, Package, PackageSearch,
+  Check, ChevronDown, CircleUserRound, LogOut, MapPin, Menu, Package, PackageSearch,
   RefreshCw, Search, ShoppingBag, SlidersHorizontal, Store, X,
 } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
@@ -15,8 +15,6 @@ import CleaningScene from './components/CleaningScene.jsx';
 import Modal from './components/Modal.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
 import { useOrderReturn } from './lib/orderReturn.js';
-
-const WHATSAPP_URL = 'https://wa.me/5491133697693';
 
 const SORT_OPTIONS = [
   ['name', 'Nombre (A a Z)'],
@@ -303,14 +301,12 @@ function Shop({ session, setSession, onSignedIn, onAdmin, notify, ordersSignal }
               <ul>{pickUpPoints.map(point => <li key={point}>{pickupLabel(point)}</li>)}</ul>
             </div>
           </div>
-          <p className="pickup__help">¿Tenés una consulta sobre un producto o un pedido? <a className="text-link" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> Escribinos por WhatsApp</a></p>
         </section>
       </main>
 
       <footer className="site-footer">
         <div className="wrap site-footer__row">
           <Brand onClick={toTop} />
-          <a className="text-link" href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> WhatsApp 11 3369-7693</a>
           <button className="text-link site-footer__admin" type="button" onClick={onAdmin}><Store size={15} /> Pedidos del local</button>
           <span>© {new Date().getFullYear()} CR Perfumería & Limpieza</span>
         </div>
