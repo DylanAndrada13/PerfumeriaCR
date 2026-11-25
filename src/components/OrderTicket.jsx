@@ -194,7 +194,7 @@ export default function OrderTicket({ order, onBack }) {
         <iframe ref={frame} title={`Ticket ${order.order_number}`} srcDoc={html} onLoad={onLoad} scrolling="no"
           style={{ width: `${PAPERS[prefs.width].paper}mm`, height: `${height}px` }} />
       </div>
-      <p className="note">Vista a tamaño real. Sin impresora, elegí “Guardar como PDF” en el diálogo de impresión para revisar el resultado. Con la Xprinter: elegila como impresora, papel {prefs.width} mm y márgenes “Ninguno”.</p>
+      <p className="note">Vista a tamaño real. Con la Xprinter: elegila como impresora, papel {prefs.width} mm y márgenes “Ninguno”.</p>
     </div>
   );
 }
