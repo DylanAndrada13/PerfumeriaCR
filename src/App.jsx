@@ -178,7 +178,7 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
         <section className="hero wrap" aria-labelledby="hero-title">
           <div className="hero__copy">
             <h1 id="hero-title">Perfumería y limpieza para retirar cerca de casa</h1>
-            <p className="hero__lead">Armá el pedido, pagalo en efectivo, por transferencia o con Mercado Pago y retiralo en nuestros locales o en un punto de encuentro.</p>
+            <p className="hero__lead">Armá el pedido, pagalo en efectivo o por transferencia y retiralo en nuestros locales o en un punto de encuentro.</p>
             <div className="hero__actions">
               <button className="button button--gold button--large" type="button" onClick={() => scrollCatalog()}>Ver productos</button>
               <button className="button button--outline button--large" type="button" onClick={() => document.getElementById('retiro')?.scrollIntoView({ behavior: 'smooth' })}>Dónde retirar</button>
@@ -257,7 +257,7 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
           </div>
           <ol className="how">
             <li><span>1</span><div><strong>Elegí los productos</strong><p>Buscá por nombre, marca o categoría y sumalos al carrito.</p></div></li>
-            <li><span>2</span><div><strong>Elegí cómo pagar</strong><p>En efectivo al retirar, por transferencia, o online con Mercado Pago.</p></div></li>
+            <li><span>2</span><div><strong>Elegí cómo pagar</strong><p>En efectivo al retirar o por transferencia.</p></div></li>
             <li><span>3</span><div><strong>Retirá el pedido</strong><p>En el local o en el punto de encuentro, con el número de pedido.</p></div></li>
           </ol>
           <div className="places">

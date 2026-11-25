@@ -160,9 +160,9 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
   const phoneDigits = customerPhone.replace(/\D/g, '');
   const dniReady = !transfer || /^\d{6,9}$/.test(customerDni);
   const contactReady = customerName.trim().length >= 2 && phoneDigits.length >= 8 && phoneDigits.length <= 15 && dniReady;
-  const pickupReady = Boolean(pickup) && (pickupType === 'local' || pickupDates.length === 3);
+  const pickupReady = Boolean(pickup) && (pickupType === 'local' || pickupDates.length === 1);
   const chooseType = type => { setPickupType(type); setPickup(''); setPickupDates([]); };
-  const toggleDate = date => setPickupDates(current => current.includes(date) ? current.filter(d => d !== date) : current.length >= 3 ? current : [...current, date].sort());
+  const toggleDate = date => setPickupDates(current => current.includes(date) ? [] : [date]);
   const cash = method === 'efectivo';
   const submit = async () => {
     setBusy(true); setError('');
@@ -199,7 +199,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
     : !contactReady ? (dniReady ? 'Completá tu nombre y teléfono' : 'Completá tu DNI')
     : !pickupType ? 'Elegí cómo retirás el pedido'
     : !pickup ? (pickupType === 'local' ? 'Elegí el local' : 'Elegí un punto de encuentro')
-    : !pickupReady ? `Elegí ${3 - pickupDates.length} ${3 - pickupDates.length === 1 ? 'fecha más' : 'fechas más'}`
+    : !pickupReady ? 'Elegí la fecha de entrega'
       : !method ? 'Elegí cómo vas a pagar'
         : cash ? 'Enviar pedido' : transfer ? 'Ver datos para transferir' : `Pagar ${money(grandTotal)} con Mercado Pago`;
   return (
@@ -231,7 +231,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
             <span className="choice__dot" aria-hidden="true" /><span><strong>Retiro en el local</strong><small>Itatí o La Haya, en horario de atención</small></span>
           </button>
           <button type="button" role="radio" aria-checked={pickupType === 'encuentro'} className={`choice choice--tall ${pickupType === 'encuentro' ? 'is-selected' : ''}`} onClick={() => chooseType('encuentro')}>
-            <span className="choice__dot" aria-hidden="true" /><span><strong>Punto de encuentro</strong><small>Elegís el lugar y 3 fechas de entrega posibles</small></span>
+            <span className="choice__dot" aria-hidden="true" /><span><strong>Punto de encuentro</strong><small>Elegís el lugar y la fecha de entrega</small></span>
           </button>
         </div>
         {pickupType && (
@@ -245,12 +245,12 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
         )}
         {pickupType === 'encuentro' && pickup && (
           <div className="pickup-dates">
-            <p className="pickup-dates__title">Las entregas son los jueves (en las fiestas, el miércoles anterior). Elegí 3 fechas <span>{pickupDates.length} de 3</span></p>
-            <div className="pickup-dates__grid" role="group" aria-label="Fechas posibles de retiro">
+            <p className="pickup-dates__title">Las entregas son los jueves (en las fiestas, el miércoles anterior). Elegí la fecha de entrega</p>
+            <div className="pickup-dates__grid" role="group" aria-label="Fecha de entrega">
               {dateOptions.map(date => {
                 const selected = pickupDates.includes(date);
                 return (
-                  <button type="button" key={date} aria-pressed={selected} className={`date-chip ${selected ? 'is-selected' : ''}`} disabled={!selected && pickupDates.length >= 3} onClick={() => toggleDate(date)}>
+                  <button type="button" key={date} aria-pressed={selected} className={`date-chip ${selected ? 'is-selected' : ''}`} onClick={() => toggleDate(date)}>
                     {formatPickupDate(date)}
                   </button>
                 );
@@ -258,7 +258,7 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
             </div>
           </div>
         )}
-        {pickupType && <p className="note">{pickupType === 'local' ? 'Te escribimos por WhatsApp cuando el pedido esté listo para retirar.' : 'El local te escribe por WhatsApp para confirmar una de las fechas y la hora del encuentro.'}</p>}
+        {pickupType && <p className="note">{pickupType === 'local' ? 'Te escribimos por WhatsApp cuando el pedido esté listo para retirar.' : 'El local te escribe por WhatsApp para confirmar la hora del encuentro.'}</p>}
       </section>
       <section className="checkout__section">
         <h3><Wallet size={17} /> Medio de pago</h3>
@@ -271,13 +271,9 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
               <span className="choice__dot" aria-hidden="true" /><Landmark size={18} className="choice__icon" /><span><strong>Transferencia</strong><small>A nuestro alias o CVU · sin recargo</small></span>
             </button>
           )}
-          <button type="button" role="radio" aria-checked={online} className={`choice choice--tall ${online ? 'is-selected' : ''}`} onClick={() => setMethod('mercado_pago')}>
-            <span className="choice__dot" aria-hidden="true" /><Wallet size={18} className="choice__icon" /><span><strong>Pago online con Mercado Pago</strong><small>Pagás ahora · {options.surchargePercent}% de recargo</small></span>
-          </button>
         </div>
         {cash && <p className="note">El local revisa el pedido y te lo prepara. Separamos los productos apenas lo enviás; lo pagás en efectivo cuando lo retirás.</p>}
         {transfer && <p className="note">Al enviar el pedido te mostramos el alias, el CVU y el monto exacto. Separamos los productos y el local confirma el pago cuando ve la transferencia.</p>}
-        {online && <p className="note">Se paga con el saldo de una cuenta de Mercado Pago. No acepta tarjetas. El pago online tiene un recargo del {options.surchargePercent}%.</p>}
       </section>
       {online && surcharge > 0 && (
         <div className="total-breakdown">
@@ -334,7 +330,7 @@ export function OrderResultDialog({ result, onClose, onShowOrders }) {
         <dl className="result__facts">
           <div><dt>Pedido</dt><dd>{order.order_number}</dd></div>
           {order.pickup_point && <div><dt>Retiro</dt><dd>{pickupLabel(order.pickup_point)}</dd></div>}
-          {order.pickup_dates?.length > 0 && <div><dt>Fechas propuestas</dt><dd>{order.pickup_dates.map(date => formatPickupDate(date)).join(' · ')}</dd></div>}
+          {order.pickup_dates?.length > 0 && <div><dt>Fecha de entrega</dt><dd>{order.pickup_dates.map(date => formatPickupDate(date)).join(' · ')}</dd></div>}
           {order.total_amount != null && <div><dt>Total</dt><dd>{money(order.total_amount)}</dd></div>}
           <div><dt>Pago</dt><dd>{paymentLabel(order)}</dd></div>
         </dl>
@@ -379,7 +375,7 @@ export function MyOrdersDialog({ session, onClose }) {
           <article className="my-order" key={order.order_number}>
             <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{orderStatusText(order)}</span></header>
             <p>{new Date(order.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · {order.pickup_type === 'encuentro' ? 'Encuentro en' : 'Retiro en'} {pickupLabel(order.pickup_point)}</p>
-            {order.pickup_dates?.length > 0 && order.order_status !== 'delivered' && order.order_status !== 'cancelled' && <p>Fechas que propusiste: {order.pickup_dates.map(date => formatPickupDate(date)).join(' · ')}</p>}
+            {order.pickup_dates?.length > 0 && order.order_status !== 'delivered' && order.order_status !== 'cancelled' && <p>Fecha de entrega: {order.pickup_dates.map(date => formatPickupDate(date)).join(' · ')}</p>}
             {order.order_status === 'cancelled' && order.status_note && <p className="my-order__note">Motivo: {order.status_note}</p>}
             <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>
             {Number(order.surcharge_amount) > 0 && <p>Incluye {money(order.surcharge_amount)} de recargo por pago online.</p>}

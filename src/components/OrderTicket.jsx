@@ -122,7 +122,7 @@ export function ticketHtml(order, { width = 58, logo = '' } = {}) {
   <div class="row"><span class="label">Cliente</span><span>${esc(order.customer_name || '-')}</span></div>
   ${order.customer_phone ? `<div class="row"><span class="label">Tel.</span><span>${esc(order.customer_phone)}</span></div>` : ''}
   <div class="row"><span class="label">Retiro</span><span>${esc(pickupLabel(order.pickup_point) || '-')}</span></div>
-  ${dates ? `<div class="row"><span class="label">Fechas</span><span>${esc(dates)}</span></div>` : ''}
+  ${dates ? `<div class="row"><span class="label">${(order.pickup_dates || []).length === 1 ? "Fecha de entrega" : "Fechas"}</span><span>${esc(dates)}</span></div>` : ''}
   <hr>
   ${rows || '<div class="center muted">Sin productos</div>'}
   <hr class="solid">
