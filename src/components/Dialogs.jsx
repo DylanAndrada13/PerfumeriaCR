@@ -306,6 +306,11 @@ export function orderStatusText(order) {
   if (order.order_status === 'awaiting_payment' && order.payment_status === 'failed') return 'Pago rechazado';
   // A Mercado Pago checkout left open for hours was most likely abandoned; nothing was charged.
   if (order.order_status === 'awaiting_payment' && Date.now() - new Date(order.created_at).getTime() > 2 * 3600 * 1000) return 'Pago sin completar';
+  if (order.order_status === 'ready_for_pickup') {
+    const local = order.pickup_type === 'local' || (!order.pickup_type && String(order.pickup_point || '').startsWith('Local'));
+    return local ? 'Listo: ya podés pasar a retirarlo' : 'Listo: te escribimos por WhatsApp para el encuentro';
+  }
+  if (order.order_status === 'preparing' || order.order_status === 'confirmed') return 'Aceptado, en preparación';
   return STEP_TEXT[order.order_status] || 'En proceso';
 }
 
