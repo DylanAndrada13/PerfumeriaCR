@@ -14,6 +14,7 @@
     { "source": "/api/mp/oauth/callback", "destination": "/api/handler?route=mp/oauth/callback" },
     { "source": "/api/orders/create", "destination": "/api/handler?route=orders/create" },
     { "source": "/api/orders/mine", "destination": "/api/handler?route=orders/mine" },
+    { "source": "/api/orders/reconcile", "destination": "/api/handler?route=orders/reconcile" },
     { "source": "/api/orders/status", "destination": "/api/handler?route=orders/status" },
     { "source": "/api/orders/webhook", "destination": "/api/handler?route=orders/webhook" }
   ]

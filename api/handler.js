@@ -7,6 +7,7 @@ import {
   mercadoPagoWebhook,
   myOrders,
   orderStatus,
+  reconcilePendingOrders,
 } from '../lib/order-api.js';
 import {
   mercadoPagoOAuthCallback,
@@ -33,6 +34,7 @@ const handlers = {
   'mp/oauth/callback': mercadoPagoOAuthCallback,
   'orders/create': createOrder,
   'orders/mine': myOrders,
+  'orders/reconcile': reconcilePendingOrders,
   'orders/status': orderStatus,
   'orders/webhook': mercadoPagoWebhook,
 };
