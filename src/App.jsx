@@ -178,7 +178,7 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
         <section className="hero wrap" aria-labelledby="hero-title">
           <div className="hero__copy">
             <h1 id="hero-title">Perfumería y limpieza para retirar cerca de casa</h1>
-            <p className="hero__lead">Armá el pedido, pagalo con Mercado Pago o en efectivo y retiralo en nuestros locales o en un punto de encuentro.</p>
+            <p className="hero__lead">Armá el pedido, pagalo en efectivo, por transferencia o con Mercado Pago y retiralo en nuestros locales o en un punto de encuentro.</p>
             <div className="hero__actions">
               <button className="button button--gold button--large" type="button" onClick={() => scrollCatalog()}>Ver productos</button>
               <button className="button button--outline button--large" type="button" onClick={() => document.getElementById('retiro')?.scrollIntoView({ behavior: 'smooth' })}>Dónde retirar</button>
@@ -257,7 +257,7 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
           </div>
           <ol className="how">
             <li><span>1</span><div><strong>Elegí los productos</strong><p>Buscá por nombre, marca o categoría y sumalos al carrito.</p></div></li>
-            <li><span>2</span><div><strong>Elegí cómo pagar</strong><p>Con saldo de Mercado Pago ahora, o en efectivo cuando lo retirás.</p></div></li>
+            <li><span>2</span><div><strong>Elegí cómo pagar</strong><p>En efectivo al retirar, por transferencia, o online con Mercado Pago.</p></div></li>
             <li><span>3</span><div><strong>Retirá el pedido</strong><p>En el local o en el punto de encuentro, con el número de pedido.</p></div></li>
           </ol>
           <div className="places">
@@ -302,7 +302,7 @@ function Shop({ session, setSession, onAdmin, notify, ordersSignal }) {
         </Modal>
       )}
       {cartOpen && <CartDialog items={cartItems} total={cartTotal} onClose={() => setCartOpen(false)} onQty={changeQty} onRemove={removeItem} onCheckout={startCheckout} />}
-      {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onCashOrdered={(data, items) => { setCart([]); setCheckoutOpen(false); setCashResult({ state: 'cash', order: { order_number: data.orderNumber, pickup_point: data.pickupPoint, pickup_dates: data.pickupDates, total_amount: data.total, payment_method: 'efectivo', items: items.map(item => ({ product_name: item.name, quantity: item.qty })) } }); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
+      {checkoutOpen && <CheckoutDialog items={cartItems.filter(item => !item.unavailable)} total={cartTotal} session={session} onClose={() => setCheckoutOpen(false)} onBack={() => { setCheckoutOpen(false); setCartOpen(true); }} onOrdered={() => { setCart([]); setCheckoutOpen(false); }} onCashOrdered={(data, items) => { setCart([]); setCheckoutOpen(false); setCashResult({ state: data.paymentMethod === 'transferencia' ? 'transfer' : 'cash', order: { order_number: data.orderNumber, pickup_point: data.pickupPoint, pickup_dates: data.pickupDates, total_amount: data.total, payment_method: data.paymentMethod || 'efectivo', transfer: data.transfer, items: items.map(item => ({ product_name: item.name, quantity: item.qty })) } }); }} onLogin={() => { setCheckoutOpen(false); startAuth('login'); }} />}
       {cashResult && <OrderResultDialog result={cashResult} onClose={() => setCashResult(null)} onShowOrders={() => { setCashResult(null); setOrdersOpen(true); }} />}
       {ordersOpen && <MyOrdersDialog session={session} onClose={() => setOrdersOpen(false)} />}
       {authOpen && <AuthDialog mode={authMode} onClose={() => setAuthOpen(false)} onSignedIn={nextSession => setSession(nextSession)} />}

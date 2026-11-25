@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CATALOG_CACHE, catalogErrorMessage, getCatalogFacets, getCatalogPage, getProductsByIds } from './lib/server-catalog.js';
-import { createOrder, mercadoPagoWebhook, orderStatus, adminLogin, adminOrders, adminOrderAction, myOrders } from './lib/order-api.js';
+import { createOrder, mercadoPagoWebhook, orderStatus, adminLogin, adminOrders, adminOrderAction, myOrders, paymentOptions, sellerRecentPayments, reconcilePendingOrders } from './lib/order-api.js';
 import { signUp } from './lib/auth-api.js';
 import { startMercadoPagoConnect, mercadoPagoOAuthCallback, mercadoPagoConnectionStatus } from './lib/mercadopago-oauth.js';
 
@@ -24,6 +24,9 @@ app.post('/api/admin/login', adminLogin);
 app.get('/api/admin/orders', adminOrders);
 app.get('/api/admin/mp/connect', startMercadoPagoConnect);
 app.get('/api/admin/mp/status', mercadoPagoConnectionStatus);
+app.get('/api/admin/mp/payments', sellerRecentPayments);
+app.get('/api/payments/options', paymentOptions);
+app.all('/api/orders/reconcile', reconcilePendingOrders);
 app.get('/api/mp/oauth/callback', mercadoPagoOAuthCallback);
 app.get('/api/catalog/products', async (request, response) => {
   try {

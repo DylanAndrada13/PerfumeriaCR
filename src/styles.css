@@ -742,3 +742,21 @@ body { touch-action: pan-x pan-y; }
 .ticket-view__paper { max-height: min(56dvh, 640px); overflow: auto; display: flex; justify-content: center; padding: 18px 8px; border-radius: var(--radius); background: var(--panel-soft); }
 .ticket-view__paper iframe { display: block; flex: none; border: 0; background: #fff; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
 .ticket-view .note { margin-top: 12px; }
+
+/* Payment choices: three options stack in one column on narrow screens. */
+.checkout .choice-grid[aria-label="Medio de pago"] { grid-template-columns: 1fr; }
+.total-breakdown { display: grid; gap: 6px; margin: 18px 0 -10px; color: var(--muted); font-size: 14px; }
+.total-breakdown div { display: flex; justify-content: space-between; gap: 12px; }
+
+/* Bank transfer details */
+.transfer { display: grid; gap: 12px; margin: 0 0 16px; border: 1px solid var(--line); border-radius: 14px; padding: 16px; text-align: left; }
+.transfer--compact { margin: 10px 0; padding: 12px; }
+.transfer__amount { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; color: var(--muted); font-size: 14px; }
+.transfer__amount strong { color: var(--gold-bright); font-size: 24px; }
+.transfer__facts { display: grid; gap: 8px; margin: 0; }
+.transfer__facts div { display: flex; justify-content: space-between; gap: 12px; }
+.transfer__facts dt { color: var(--muted); font-size: 13px; }
+.transfer__facts dd { margin: 0; overflow-wrap: anywhere; color: var(--paper); font-size: 15px; font-weight: 600; text-align: right; }
+.transfer__cvu { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.transfer__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.transfer__actions .button { flex: 1 1 140px; justify-content: center; text-decoration: none; }

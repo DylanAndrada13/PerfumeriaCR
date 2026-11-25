@@ -135,10 +135,10 @@ export function AuthGate({ onSignedIn, onAdmin }) {
         <section className="gate__brand" aria-labelledby="gate-title">
           <Logo size="medium" className="gate__logo" eager />
           <h1 id="gate-title">Perfumería y limpieza con retiro en el local o en un punto de encuentro</h1>
-          <p>Creá tu cuenta para ver el catálogo, armar el pedido y pagarlo con Mercado Pago o en efectivo.</p>
+          <p>Creá tu cuenta para ver el catálogo, armar el pedido y pagarlo en efectivo, por transferencia o con Mercado Pago.</p>
           <ul className="gate__perks">
             <li><ShoppingBag size={18} /> Catálogo con precios y stock del local</li>
-            <li><Wallet size={18} /> Pago con Mercado Pago o en efectivo al retirar</li>
+            <li><Wallet size={18} /> Pago en efectivo, por transferencia o con Mercado Pago</li>
             <li><MapPin size={18} /> Retiro en {localPickups.join(' o ')}, o en {pickUpPoints.length} puntos de encuentro</li>
           </ul>
         </section>

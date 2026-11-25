@@ -22,9 +22,19 @@ const mpConnectMessages = {
   failed: 'Falló el callback OAuth. No se guardó la conexión; revisá los registros de funciones de Vercel para ver el detalle.',
 };
 
-const statusLabel = status => (status === 'paid' ? 'Pagado' : status === 'failed' ? 'Pago rechazado' : 'Pago pendiente');
+const statusLabel = status => (status === 'paid' ? 'Pagado' : status === 'failed' ? 'Pago rechazado' : status === 'pending_verification' ? 'Transferencia a verificar' : 'Pago pendiente');
+const methodLabel = method => (method === 'mercado_pago' ? 'Mercado Pago' : method === 'transferencia' ? 'Transferencia' : 'Efectivo al retirar');
+// wa.me link with the message already written. Argentine mobiles need 549 + area code + number.
+export function whatsappLink(phone, text) {
+  let digits = String(phone || '').replace(/\D/g, '').replace(/^00/, '');
+  if (digits.startsWith('54')) digits = digits.slice(2);
+  if (digits.startsWith('9')) digits = digits.slice(1);
+  digits = digits.replace(/^0/, '').replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2');
+  return digits.length >= 8 ? `https://wa.me/549${digits}?text=${encodeURIComponent(text)}` : '';
+}
+const paidMessage = order => `¡Hola ${String(order.customer_name || '').split(' ')[0]}! Recibimos tu transferencia de ${money(order.total_amount)} para el pedido ${order.order_number} de CR Perfumería & Limpieza. Ya lo estamos preparando y te avisamos cuando esté listo para retirar.`;
 const ORDER_LABEL = {
-  pending_review: 'Nuevo, sin aceptar', awaiting_payment: 'Esperando pago', confirmed: 'Pagado, a preparar',
+  pending_review: 'Nuevo, sin aceptar', transfer_review: 'Transferencia a verificar', awaiting_payment: 'Esperando pago', confirmed: 'Pagado, a preparar',
   preparing: 'En preparación', ready_for_pickup: 'Listo para retirar', delivered: 'Entregado', cancelled: 'Cancelado',
 };
 const FILTERS = [['active', 'En curso'], ['pending_review', 'Nuevos'], ['done', 'Cerrados'], ['all', 'Todos']];
@@ -32,6 +42,7 @@ const isActive = order => !['delivered', 'cancelled'].includes(order.order_statu
 
 function actionsFor(order) {
   const cash = order.payment_method === 'efectivo';
+  if (order.payment_method === 'transferencia' && order.order_status === 'pending_review') return [['confirm_payment', 'Confirmar pago'], ['reject', 'Rechazar']];
   switch (order.order_status) {
     case 'pending_review': return [['accept', 'Aceptar'], ['reject', 'Rechazar']];
     case 'confirmed': return [['ready', 'Listo para retirar'], ['deliver', 'Entregado']];
@@ -132,8 +143,8 @@ export default function OrderMonitor({ onClose, connectionResult }) {
           {sellerConnection?.sellerMatchesTestUser === false && <p className="alert alert--error" role="alert"><AlertCircle size={16} />La cuenta conectada no coincide con la cuenta vendedora de prueba configurada.</p>}
           {sellerConnection?.sellerIsTestAccount && <p className="alert alert--error" role="alert"><AlertCircle size={16} />La cuenta conectada es de prueba. En producción no se habilitarán cobros hasta conectar una cuenta real.</p>}
           {connectionError && <p className="alert alert--error" role="alert"><AlertCircle size={16} />{connectionError}</p>}
-          <p className="note">Mercado Pago descuenta el stock cuando el webhook confirma el pago. Efectivo lo reserva al enviar el pedido y lo devuelve si lo cancelás.</p>
-          {newCount > 0 && <p className="alert admin__new" role="status"><Bell size={16} />Tenés {newCount} {newCount === 1 ? 'pedido nuevo' : 'pedidos nuevos'} en efectivo para aceptar o rechazar.</p>}
+          <p className="note">Mercado Pago descuenta el stock cuando el webhook confirma el pago. Efectivo y transferencia lo reservan al enviar el pedido y lo devuelven si lo cancelás.</p>
+          {newCount > 0 && <p className="alert admin__new" role="status"><Bell size={16} />Tenés {newCount} {newCount === 1 ? 'pedido nuevo' : 'pedidos nuevos'} para revisar (efectivo o transferencia).</p>}
           <div className="admin__filters" role="tablist" aria-label="Filtrar pedidos">
             {FILTERS.map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={filter === value} className={`chip ${filter === value ? 'is-selected' : ''}`} onClick={() => setFilter(value)}>{label}{value === 'pending_review' && newCount > 0 ? ` (${newCount})` : ''}</button>)}
           </div>
@@ -144,20 +155,24 @@ export default function OrderMonitor({ onClose, connectionResult }) {
           <div className="admin__orders">
             {visible.length === 0 ? <p className="note">No hay pedidos en esta vista.</p> : visible.map(order => (
               <article className={`admin-order admin-order--clickable ${order.order_status === 'pending_review' ? 'admin-order--new' : ''}`} key={order.id} onClick={event => { if (!event.target.closest('button, a')) setTicketId(order.id); }}>
-                <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{ORDER_LABEL[order.order_status] || order.order_status}</span></header>
-                <p>{order.customer_name} · {order.customer_email}{order.customer_phone ? ` · ${order.customer_phone}` : ""}</p>
+                <header><strong>{order.order_number}</strong><span className={`status-pill status-pill--${order.order_status}`}>{ORDER_LABEL[order.payment_method === 'transferencia' && order.order_status === 'pending_review' ? 'transfer_review' : order.order_status] || order.order_status}</span></header>
+                <p>{order.customer_name}{order.customer_dni ? ` · DNI ${order.customer_dni}` : ''} · {order.customer_email}{order.customer_phone ? ` · ${order.customer_phone}` : ""}</p>
                 {order.customer_note && <p className="note">Nota: {order.customer_note}</p>}
                 <p>{new Date(order.created_at).toLocaleString('es-AR')} · Retiro: {pickupLabel(order.pickup_point)}{order.pickup_dates?.length ? ` · Fechas: ${order.pickup_dates.join(', ')}` : ''}</p>
                 <ul>{(order.web_order_items || []).map((item, i) => <li key={`${item.product_name}-${i}`}>{item.quantity} × {item.product_name}</li>)}</ul>
                 {order.stock_shortage?.length > 0 && <p className="alert alert--error"><AlertCircle size={16} />Faltó stock al descontar: revisá {order.stock_shortage.length === 1 ? 'un producto' : `${order.stock_shortage.length} productos`} antes de prepararlo.</p>}
-                <footer><span>{order.payment_method === 'mercado_pago' ? 'Mercado Pago' : 'Efectivo al retirar'} · {statusLabel(order.payment_status)}</span><strong>{money(order.total_amount)}</strong></footer>
+                {Number(order.surcharge_amount) > 0 && <p className="note">Incluye {money(order.surcharge_amount)} de recargo por pago online.</p>}
+                <footer><span>{methodLabel(order.payment_method)} · {statusLabel(order.payment_status)}</span><strong>{money(order.total_amount)}</strong></footer>
                 <div className="admin-order__actions">
                   <button type="button" className="button button--small button--ghost" onClick={() => setTicketId(order.id)}><Receipt size={15} /> Ver ticket</button>
                   {actionsFor(order).map(([action, label]) => (
-                      <button key={action} type="button" className={`button button--small ${action === 'reject' ? 'button--ghost' : action === 'accept' || action === 'deliver' ? 'button--gold' : 'button--outline'}`} disabled={Boolean(working)} onClick={() => act(order, action)}>
+                      <button key={action} type="button" className={`button button--small ${action === 'reject' ? 'button--ghost' : action === 'accept' || action === 'deliver' || action === 'confirm_payment' ? 'button--gold' : 'button--outline'}`} disabled={Boolean(working)} onClick={() => act(order, action)}>
                         {working === `${order.id}:${action}` ? 'Guardando…' : label}
                       </button>
                   ))}
+                  {order.payment_method === 'transferencia' && order.payment_status === 'paid' && whatsappLink(order.customer_phone, paidMessage(order)) && (
+                    <a className="button button--small button--outline" href={whatsappLink(order.customer_phone, paidMessage(order))} target="_blank" rel="noopener noreferrer">Avisar por WhatsApp</a>
+                  )}
                 </div>
               </article>
             ))}

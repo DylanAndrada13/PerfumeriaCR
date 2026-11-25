@@ -59,7 +59,7 @@ export function thermalLogo(src = '/brand/logo-384.png') {
   return logoCache;
 }
 
-const PAYMENT_STATUS = { paid: 'PAGADO', failed: 'RECHAZADO', pending: 'PENDIENTE' };
+const PAYMENT_STATUS = { paid: 'PAGADO', failed: 'RECHAZADO', pending: 'PENDIENTE', pending_verification: 'A VERIFICAR' };
 
 export function ticketHtml(order, { width = 58, logo = '' } = {}) {
   const paper = PAPERS[width] || PAPERS[58];
@@ -71,7 +71,7 @@ export function ticketHtml(order, { width = 58, logo = '' } = {}) {
   const units = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
   const cash = order.payment_method === 'efectivo';
   const paid = order.payment_status === 'paid';
-  const payment = cash ? 'Efectivo al retirar' : 'Mercado Pago';
+  const payment = cash ? 'Efectivo al retirar' : order.payment_method === 'transferencia' ? 'Transferencia' : 'Mercado Pago';
   const payState = paid ? 'PAGADO' : cash ? 'A COBRAR' : (PAYMENT_STATUS[order.payment_status] || 'PENDIENTE');
   const dates = (order.pickup_dates || []).map(d => formatPickupDate(d)).join(' / ');
 
@@ -127,6 +127,7 @@ export function ticketHtml(order, { width = 58, logo = '' } = {}) {
   ${rows || '<div class="center muted">Sin productos</div>'}
   <hr class="solid">
   <div class="row"><span class="label">Artículos</span><span>${units}</span></div>
+  ${Number(order.surcharge_amount) > 0 ? `<div class="row row--money"><span>Recargo pago online</span><span>${esc(money(order.surcharge_amount))}</span></div>` : ''}
   <div class="row row--money total"><span>TOTAL</span><span>${esc(money(order.total_amount))}</span></div>
   <hr>
   <div class="row"><span class="label">Pago</span><span>${esc(payment)}</span></div>

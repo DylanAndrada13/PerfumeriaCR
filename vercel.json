@@ -8,6 +8,8 @@
     { "source": "/api/admin/orders", "destination": "/api/handler?route=admin/orders" },
     { "source": "/api/admin/mp/connect", "destination": "/api/handler?route=admin/mp/connect" },
     { "source": "/api/admin/mp/status", "destination": "/api/handler?route=admin/mp/status" },
+    { "source": "/api/admin/mp/payments", "destination": "/api/handler?route=admin/mp/payments" },
+    { "source": "/api/payments/options", "destination": "/api/handler?route=payments/options" },
     { "source": "/api/auth/signup", "destination": "/api/handler?route=auth/signup" },
     { "source": "/api/catalog/facets", "destination": "/api/handler?route=catalog/facets" },
     { "source": "/api/catalog/products", "destination": "/api/handler?route=catalog/products" },
