@@ -39,7 +39,7 @@ export function TransferInstructions({ transfer, total, orderNumber, compact = f
       <div className="transfer__actions">
         <CopyButton value={transfer.alias} label="Copiar alias" />
         <CopyButton value={transfer.cvu} label={`Copiar ${kind}`} />
-        <a className="button button--gold transfer__open" href="https://www.mercadopago.com.ar/" target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> Abrir Mercado Pago</a>
+        <a className="button button--gold transfer__open" href={transfer.payUrl || 'https://www.mercadopago.com.ar/'} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> {transfer.payUrl ? 'Pagar con Mercado Pago' : 'Abrir Mercado Pago'}</a>
       </div>
       <p className="note">Podés transferir desde cualquier banco o billetera. Si ya transferiste, te vamos a avisar por WhatsApp cuando confirmemos el pago.</p>
     </section>
@@ -260,12 +260,12 @@ export function CheckoutDialog({ items, total, session, onClose, onBack, onLogin
           </button>
           {options.transferEnabled && (
             <button type="button" role="radio" aria-checked={transfer} className={`choice choice--tall ${transfer ? 'is-selected' : ''}`} onClick={() => setMethod('transferencia')}>
-              <span className="choice__dot" aria-hidden="true" /><Landmark size={18} className="choice__icon" /><span><strong>Transferencia</strong><small>A nuestro alias o CBU · sin recargo</small></span>
+              <span className="choice__dot" aria-hidden="true" /><Landmark size={18} className="choice__icon" /><span><strong>Transferencia</strong><small>A nuestro alias · sin recargo</small></span>
             </button>
           )}
         </div>
         {cash && <p className="note">El local revisa el pedido y te lo prepara. Separamos los productos apenas lo enviás; lo pagás en efectivo cuando lo retirás.</p>}
-        {transfer && <p className="note">Al enviar el pedido te mostramos el alias, el CBU y el monto exacto. Separamos los productos y el local confirma el pago cuando ve la transferencia.</p>}
+        {transfer && <p className="note">Al enviar el pedido te mostramos el alias, el número de cuenta y el monto exacto. Separamos los productos y el local confirma el pago cuando ve la transferencia.</p>}
       </section>
       <section className="checkout__section">
         <h3><Contact size={17} /> Tus datos</h3>
